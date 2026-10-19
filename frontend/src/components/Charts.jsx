@@ -174,7 +174,7 @@ export function BudgetDonutChart({ totalCNY = 50000 }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
       <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
         <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-          <circle cx={center} cy={center} r={radius} fill="none" stroke="var(--bg-secondary)" strokeWidth={strokeWidth} />
+          <circle cx={center} cy={center} r={radius} fill="none" stroke="#e2e8f0" strokeWidth={strokeWidth} />
           {items.map((item, idx) => {
             const pct = item.amount / total
             const strokeDasharray = `${pct * circumference} ${circumference}`
@@ -296,7 +296,7 @@ export function RouteComparisonChart({ quotes = [] }) {
             </div>
 
             {/* Visual cost breakdown bar */}
-            <div style={{ width: '100%', height: 6, background: 'var(--bg-card)', borderRadius: 3, overflow: 'hidden', display: 'flex' }}>
+            <div style={{ width: '100%', height: 6, background: '#e2e8f0', borderRadius: 3, overflow: 'hidden', display: 'flex' }}>
               <div style={{ width: `${pct * 0.94}%`, height: '100%', background: isBest ? 'var(--green)' : 'var(--accent)' }} title="Base Currency Cost" />
               <div style={{ width: `${pct * 0.04}%`, height: '100%', background: 'var(--orange)' }} title="FX Margin Spread" />
               <div style={{ width: `${pct * 0.02}%`, height: '100%', background: 'var(--purple)' }} title="Fixed & Network Fees" />
@@ -327,7 +327,7 @@ export function SAFEMeter({ currentCNY = 28000 }) {
         <span className="badge badge-green">Within Annual Quota (Tier 1)</span>
       </div>
 
-      <div style={{ width: '100%', height: 8, background: 'var(--bg-secondary)', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
+      <div style={{ width: '100%', height: 8, background: '#e2e8f0', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
         <div style={{
           width: `${pct}%`, height: '100%',
           background: pct > 80 ? 'var(--red)' : pct > 50 ? 'var(--orange)' : 'linear-gradient(90deg, var(--accent), var(--green))',
@@ -361,7 +361,7 @@ export function CreditProgressGauge({ completedSteps = 3, totalSteps = 6 }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
       <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
         <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--bg-secondary)" strokeWidth={stroke} />
+          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#e2e8f0" strokeWidth={stroke} />
           <circle
             cx={size / 2}
             cy={size / 2}

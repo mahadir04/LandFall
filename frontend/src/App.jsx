@@ -283,7 +283,7 @@ function AuthScreen({ onComplete }) {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse at top, #0d2035 0%, #0d1117 70%)', padding: '30px 16px' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse at top, rgba(37, 99, 235, 0.06) 0%, var(--bg-primary) 70%)', padding: '30px 16px' }}>
       <div className="onboarding-container fade-in" style={{ maxWidth: 540, width: '100%' }}>
         <div className="onboarding-logo" style={{ textAlign: 'center', marginBottom: 20 }}>
           <div className="onboarding-logo-icon" style={{ margin: '0 auto 12px' }}>✈️</div>
@@ -1449,7 +1449,7 @@ export default function App() {
 
   if (authLoading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#080b11', color: 'var(--text-secondary)' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)', color: 'var(--text-secondary)' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>✈️</div>
           <div style={{ fontWeight: 600 }}>Loading Landfall Session...</div>
