@@ -1,0 +1,50 @@
+[
+  {
+    "id": "PAY-001",
+    "institution": "Shenzhen University",
+    "name": "SZU Finance Office",
+    "bank": "ICBC Shenzhen",
+    "account_ref": "TOKEN_SZU_001",
+    "cnaps_code": "102584000012",
+    "country": "CN",
+    "purpose": "Tuition",
+    "source_url": "https://www.szu.edu.cn/finance",
+    "last_verified": "2026-10-16"
+  },
+  {
+    "id": "PAY-002",
+    "institution": "Southern University of Science and Technology",
+    "name": "SUSTech Finance Office",
+    "bank": "Bank of China Shenzhen",
+    "account_ref": "TOKEN_SUSTech_002",
+    "cnaps_code": "104584000019",
+    "country": "CN",
+    "purpose": "Tuition",
+    "source_url": "https://www.sustech.edu.cn/finance",
+    "last_verified": "2026-10-16"
+  },
+  {
+    "id": "PAY-003",
+    "institution": "Peking University",
+    "name": "PKU International Finance",
+    "bank": "ICBC Beijing",
+    "account_ref": "TOKEN_PKU_003",
+    "cnaps_code": "102100099996",
+    "country": "CN",
+    "purpose": "Tuition",
+    "source_url": "https://www.pku.edu.cn/finance",
+    "last_verified": "2026-10-16"
+  },
+  {
+    "id": "PAY-SCAM-001",
+    "institution": "Scam Agent Ltd",
+    "name": "Official Edu Payment Services",
+    "bank": "Unknown",
+    "account_ref": "TOKEN_SCAM_001",
+    "cnaps_code": null,
+    "country": "CN",
+    "purpose": "Unknown",
+    "source_url": null,
+    "last_verified": null
+  }
+]

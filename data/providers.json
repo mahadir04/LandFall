@@ -1,0 +1,32 @@
+[
+  {
+    "id": "SWIFT",
+    "name": "SWIFT (Bank of India → ICBC)",
+    "fx_margin": 0.015,
+    "pct_fee": 0.005,
+    "fixed_fee_inr": 500,
+    "speed_days": "3-5 days",
+    "logo": "🏦",
+    "notes": "Traditional wire transfer via SWIFT network"
+  },
+  {
+    "id": "UNIONPAY",
+    "name": "UnionPay Cross-border",
+    "fx_margin": 0.008,
+    "pct_fee": 0.003,
+    "fixed_fee_inr": 200,
+    "speed_days": "1-2 days",
+    "logo": "💳",
+    "notes": "Direct UnionPay international transfer channel"
+  },
+  {
+    "id": "WECHAT",
+    "name": "WeChat Pay International",
+    "fx_margin": 0.012,
+    "pct_fee": 0.004,
+    "fixed_fee_inr": 0,
+    "speed_days": "Real-time",
+    "logo": "💬",
+    "notes": "Instant transfer via WeChat Pay ecosystem"
+  }
+]
