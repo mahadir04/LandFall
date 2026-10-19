@@ -524,6 +524,11 @@ function Dashboard({ profile, plan, onNavigate }) {
     { name: 'UnionPay Debit Card Activation', status: 'pending', tag: 'Cashless Setup', critical: false },
   ]
 
+  const displayRates = (fxRates || []).map(r => {
+    const scale = (curInfo.midRateToCNY || 0.0861) / 0.0861
+    return { ...r, rate: Math.round(r.rate * scale * 10000) / 10000 }
+  })
+
   return (
     <div style={{ padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: 22 }}>
       <div className="notification notification-info fade-in" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -565,7 +570,12 @@ function Dashboard({ profile, plan, onNavigate }) {
 
         <div className="card fade-in">
           <div className="card-title">{curInfo.code} / CNY Exchange Rate Trend (30 Days)</div>
-          <FXSplineChart rates={fxRates.slice(-14)} scenario="baseline" />
+          <FXSplineChart
+            rates={displayRates.slice(-14)}
+            scenario="baseline"
+            currencyCode={curInfo.code}
+            currencySymbol={curInfo.symbol}
+          />
         </div>
       </div>
 
@@ -1096,6 +1106,12 @@ function FXScreen({ profile }) {
   const [replan, setReplan] = useState(null)
   const [loading, setLoading] = useState(false)
 
+  const curInfo = CURRENCIES.find(c => c.code === (profile?.home_currency || 'INR')) || CURRENCIES[0]
+  const displayRates = (data?.rates || []).map(r => {
+    const scale = (curInfo.midRateToCNY || 0.0861) / 0.0861
+    return { ...r, rate: Math.round(r.rate * scale * 10000) / 10000 }
+  })
+
   const run = async (sc = scenario) => {
     setLoading(true)
     const [fx, rp] = await Promise.all([
@@ -1145,8 +1161,13 @@ function FXScreen({ profile }) {
         <>
           {/* Graphical Insights: Interactive FX Spline Chart */}
           <div className="card fade-in">
-            <div className="card-title">Interactive Spline Trend ({scenario.toUpperCase()})</div>
-            <FXSplineChart rates={data.rates} scenario={scenario} currencyCode={profile?.home_currency || 'INR'} currencySymbol={profile?.home_currency_symbol || '₹'} />
+            <div className="card-title">Interactive Spline Trend ({curInfo.code} / CNY · {scenario.toUpperCase()})</div>
+            <FXSplineChart
+              rates={displayRates}
+              scenario={scenario}
+              currencyCode={curInfo.code}
+              currencySymbol={curInfo.symbol}
+            />
           </div>
 
           {replan && (
