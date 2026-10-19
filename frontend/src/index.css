@@ -526,6 +526,84 @@ body {
   background: var(--bg-secondary);
 }
 
+/* Auth & Individual Profile Styles */
+.auth-nav-tabs {
+  display: flex; gap: 8px; background: rgba(14, 19, 31, 0.9);
+  padding: 4px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+  margin-bottom: 18px;
+}
+.auth-nav-tab {
+  flex: 1; padding: 10px 14px; text-align: center; font-size: 13px; font-weight: 600;
+  border-radius: 6px; cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  color: var(--text-secondary); border: none; background: transparent;
+}
+.auth-nav-tab:hover { color: var(--text-primary); }
+.auth-nav-tab.active {
+  background: var(--accent-dim); color: var(--accent);
+  border: 1px solid var(--border-accent); box-shadow: 0 2px 10px rgba(0, 242, 254, 0.15);
+}
+
+.quick-accounts-section {
+  margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border);
+}
+.quick-accounts-title {
+  font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;
+  letter-spacing: 0.8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;
+}
+.quick-accounts-grid {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.quick-account-btn {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s ease;
+  text-align: left; width: 100%; color: inherit;
+}
+.quick-account-btn:hover {
+  border-color: var(--accent); background: var(--bg-card); transform: translateX(3px);
+  box-shadow: 0 4px 14px rgba(0, 242, 254, 0.12);
+}
+
+/* Plan Progress Bar */
+.plan-progress-card {
+  background: linear-gradient(135deg, rgba(14, 19, 31, 0.95), rgba(16, 22, 36, 0.85));
+  border: 1px solid var(--border-accent); border-radius: var(--radius);
+  padding: 18px 22px; margin-bottom: 18px; position: relative; overflow: hidden;
+}
+.plan-progress-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+}
+.progress-bar-track {
+  width: 100%; height: 8px; background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px; overflow: hidden; position: relative;
+}
+.progress-bar-fill {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--green));
+  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
+}
+
+/* Milestone Interactive Toggle */
+.milestone-toggle-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s ease; border: 1px solid transparent;
+}
+.milestone-toggle-btn.done {
+  background: var(--green-dim); color: var(--green); border-color: rgba(16, 185, 129, 0.3);
+}
+.milestone-toggle-btn.done:hover {
+  background: rgba(16, 185, 129, 0.25); border-color: var(--green);
+}
+.milestone-toggle-btn.pending {
+  background: var(--orange-dim); color: var(--orange); border-color: rgba(245, 158, 11, 0.3);
+}
+.milestone-toggle-btn.pending:hover {
+  background: rgba(16, 185, 129, 0.2); color: var(--green); border-color: var(--green);
+  transform: translateY(-1px);
+}
+
 @media (max-width: 768px) {
   .sidebar { display: none; }
   .grid-2, .grid-3 { grid-template-columns: 1fr; }

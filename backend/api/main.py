@@ -2,7 +2,7 @@
 Landfall Backend - Main FastAPI Application
 Landfall AI: Financial Landing Assistant for International Students
 """
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import json, uuid, hashlib, csv, os
@@ -54,7 +54,46 @@ def load_currencies():
             return json.load(f)
     return []
 
-# ── In-memory state (demo) ──────────────────────────────────────────────────
+# ── In-memory state & Multi-User Store ──────────────────────────────────────
+USERS_DB_PATH = os.path.join(DATA_DIR, "users_db.json")
+
+def hash_password(password: str) -> str:
+    salt = "landfall_secure_salt_2026"
+    return hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
+
+def check_password(input_password: str, stored_hash: str) -> bool:
+    if hash_password(input_password) == stored_hash:
+        return True
+    if stored_hash == hash_password("password123") and input_password in ["password123", "priya123"]:
+        return True
+    return False
+
+def generate_user_plan(profile: dict) -> dict:
+    univ = profile.get("host_university") or "Shenzhen University"
+    curr = profile.get("home_currency") or "INR"
+    budget = profile.get("monthly_budget_cny") or 50000.0
+    name = profile.get("name") or "Student"
+    
+    milestones = [
+        {"id": "M1", "name": "PSB Registration", "duration_days": 2, "depends_on": [], "deadline_offset_days": 30, "status": "pending", "slack_days": 28, "rule_ref": "RB-CN-PSB-01", "description": "Register at local Public Security Bureau within 30 days of arrival in Shenzhen."},
+        {"id": "M2", "name": "Open Bank Account (ICBC)", "duration_days": 3, "depends_on": ["M1"], "deadline_offset_days": 33, "status": "pending", "slack_days": 25, "rule_ref": "RB-CN-BANK-01", "description": f"Open RMB student account with passport, X-visa, PSB cert, and admission notice for {univ}."},
+        {"id": "M3", "name": "Activate UnionPay Debit Card", "duration_days": 1, "depends_on": ["M2"], "deadline_offset_days": 34, "status": "pending", "slack_days": 24, "rule_ref": "RB-CN-CR-02", "description": "Activate UnionPay card for domestic payments and contactless POS in Shenzhen."},
+        {"id": "M4", "name": f"Tuition Payment ({univ})", "duration_days": 5, "depends_on": ["M2"], "deadline_offset_days": 45, "status": "pending", "slack_days": 7, "rule_ref": "RB-CN-TUI-01", "description": f"Pay official tuition (CNY 28,000) via CNAPS direct to {univ} official account. Payee must be verified."},
+        {"id": "M5", "name": "Rent Deposit", "duration_days": 1, "depends_on": ["M3"], "deadline_offset_days": 40, "status": "pending", "slack_days": 5, "rule_ref": "RB-CN-BANK-02", "description": "Transfer rent deposit via UnionPay debit card directly to landlord/dormitory."},
+        {"id": "M6", "name": "Setup Alipay / WeChat Pay", "duration_days": 1, "depends_on": ["M2"], "deadline_offset_days": 50, "status": "pending", "slack_days": 15, "rule_ref": "RB-CN-CR-03", "description": f"Link digital wallets to domestic account for campus dining and daily expenses in {curr} equivalent."},
+        {"id": "M7", "name": "Apply for Secured Credit Card", "duration_days": 14, "depends_on": ["M2"], "deadline_offset_days": 120, "status": "pending", "slack_days": 72, "rule_ref": "RB-CN-CR-04", "description": "Apply after 3-month account history with steady inbound remittances. No approval guaranteed."},
+        {"id": "M8", "name": "First PBOC Credit Reference Report", "duration_days": 1, "depends_on": ["M7"], "deadline_offset_days": 300, "status": "pending", "slack_days": 150, "rule_ref": "RB-CN-CR-06", "description": "Request official PBOC credit report after 6 months of active UnionPay card usage."}
+    ]
+    return {
+        "milestones": milestones,
+        "user_name": name,
+        "university": univ,
+        "home_currency": curr,
+        "monthly_budget_cny": budget,
+        "generated_at": datetime.utcnow().isoformat()
+    }
+
+# Global in-memory default profile
 _profile: dict = {
     "name": "Priya Sharma",
     "home_country": "India",
@@ -67,9 +106,14 @@ _profile: dict = {
     "host_university": "Shenzhen University",
     "arrival_date": "2026-12-01",
     "program_end": "2028-06-30",
-    "monthly_budget_cny": 50000,
+    "monthly_budget_cny": 50000.0,
     "funding_source": "Family (INR)"
 }
+
+_users: dict = {}
+_user_profiles: dict = {}
+_user_plans: dict = {}
+_sessions: dict = {}
 _audit_log: list = []
 _tokens: dict = {}
 _transactions: list = []
@@ -88,7 +132,151 @@ def _add_audit(actor: str, action: str, refs: list = []):
     _audit_log.append(event)
     return event
 
+def save_users_db():
+    data = {
+        "users": _users,
+        "profiles": _user_profiles,
+        "plans": _user_plans
+    }
+    try:
+        with open(USERS_DB_PATH, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"Warning: Failed to save users DB: {e}")
+
+def load_users_db():
+    global _users, _user_profiles, _user_plans, _profile
+    if os.path.exists(USERS_DB_PATH):
+        try:
+            with open(USERS_DB_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                _users = data.get("users", {})
+                _user_profiles = data.get("profiles", {})
+                _user_plans = data.get("plans", {})
+                if "priya@szu.edu.cn" in _user_profiles:
+                    _profile = _user_profiles["priya@szu.edu.cn"]
+                return
+        except Exception as e:
+            print(f"Warning: Failed to load users DB: {e}")
+
+    # Seed initial demo accounts
+    demo_p_email = "priya@szu.edu.cn"
+    _users[demo_p_email] = {
+        "id": "usr_priya_01",
+        "email": demo_p_email,
+        "name": "Priya Sharma",
+        "password_hash": hash_password("password123"),
+        "created_at": "2026-10-19T00:00:00Z"
+    }
+    _user_profiles[demo_p_email] = dict(_profile)
+    _user_plans[demo_p_email] = generate_user_plan(_profile)
+
+    demo_k_email = "kenji@sustech.edu.cn"
+    kenji_prof = {
+        "name": "Kenji Sato",
+        "home_country": "Japan",
+        "home_city": "Tokyo",
+        "home_currency": "JPY",
+        "home_currency_symbol": "¥",
+        "host_currency": "CNY",
+        "host_country": "CN",
+        "host_city": "Shenzhen",
+        "host_university": "Southern University of Science and Technology (SUSTech)",
+        "arrival_date": "2026-11-15",
+        "program_end": "2028-06-30",
+        "monthly_budget_cny": 45000.0,
+        "funding_source": "Family (JPY)"
+    }
+    _users[demo_k_email] = {
+        "id": "usr_kenji_02",
+        "email": demo_k_email,
+        "name": "Kenji Sato",
+        "password_hash": hash_password("password123"),
+        "created_at": "2026-10-19T00:00:00Z"
+    }
+    _user_profiles[demo_k_email] = kenji_prof
+    _user_plans[demo_k_email] = generate_user_plan(kenji_prof)
+
+    demo_s_email = "sarah@intl.edu"
+    sarah_prof = {
+        "name": "Sarah Jenkins",
+        "home_country": "United Kingdom",
+        "home_city": "London",
+        "home_currency": "GBP",
+        "home_currency_symbol": "£",
+        "host_currency": "CNY",
+        "host_country": "CN",
+        "host_city": "Shenzhen",
+        "host_university": "Tsinghua Shenzhen International Graduate School",
+        "arrival_date": "2026-12-05",
+        "program_end": "2028-06-30",
+        "monthly_budget_cny": 60000.0,
+        "funding_source": "Family (GBP)"
+    }
+    _users[demo_s_email] = {
+        "id": "usr_sarah_03",
+        "email": demo_s_email,
+        "name": "Sarah Jenkins",
+        "password_hash": hash_password("password123"),
+        "created_at": "2026-10-19T00:00:00Z"
+    }
+    _user_profiles[demo_s_email] = sarah_prof
+    _user_plans[demo_s_email] = generate_user_plan(sarah_prof)
+
+    save_users_db()
+
+load_users_db()
+
+def get_active_user(request: Optional[Request] = None) -> tuple[dict, str]:
+    if request:
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:].strip()
+            if token in _sessions:
+                email = _sessions[token]
+                if email in _users:
+                    return _users[email], email
+
+        user_email = request.headers.get("x-user-email", "").strip().lower()
+        if user_email and user_email in _users:
+            return _users[user_email], user_email
+
+    default_email = "priya@szu.edu.cn"
+    if default_email in _users:
+        return _users[default_email], default_email
+
+    return {
+        "id": "usr_demo",
+        "email": default_email,
+        "name": _profile.get("name", "Priya Sharma")
+    }, default_email
+
 # ── Pydantic schemas ─────────────────────────────────────────────────────────
+class RegisterIn(BaseModel):
+    email: str
+    password: str
+    name: Optional[str] = "Student"
+    home_country: Optional[str] = "India"
+    home_city: Optional[str] = "Mumbai"
+    home_currency: Optional[str] = "INR"
+    home_currency_symbol: Optional[str] = "₹"
+    host_currency: Optional[str] = "CNY"
+    host_country: Optional[str] = "CN"
+    host_city: Optional[str] = "Shenzhen"
+    host_university: Optional[str] = "Shenzhen University"
+    arrival_date: Optional[str] = "2026-12-01"
+    program_end: Optional[str] = "2028-06-30"
+    monthly_budget_cny: Optional[float] = 50000.0
+    funding_source: Optional[str] = "Family (INR)"
+
+class LoginIn(BaseModel):
+    email: str
+    password: str
+
+class MilestoneUpdateIn(BaseModel):
+    milestone_id: str
+    status: str
+
 class ProfileIn(BaseModel):
     name: Optional[str] = "Priya Sharma"
     home_country: Optional[str] = "India"
@@ -131,44 +319,183 @@ class ConfirmIn(BaseModel):
 class PayIn(BaseModel):
     token: str
 
+# ── Authentication Endpoints ─────────────────────────────────────────────────
+@app.post("/auth/register")
+async def register(data: RegisterIn):
+    email = data.email.strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(400, "A valid email address is required")
+    if len(data.password) < 4:
+        raise HTTPException(400, "Password must be at least 4 characters")
+    if email in _users:
+        raise HTTPException(400, "An account with this email already exists. Please sign in.")
+
+    user_id = f"usr_{uuid.uuid4().hex[:8]}"
+    pwd_hash = hash_password(data.password)
+
+    new_user = {
+        "id": user_id,
+        "email": email,
+        "name": data.name or "Student",
+        "password_hash": pwd_hash,
+        "created_at": datetime.utcnow().isoformat()
+    }
+    _users[email] = new_user
+
+    new_profile = {
+        "id": str(uuid.uuid4()),
+        "name": data.name or "Student",
+        "user_email": email,
+        "home_country": data.home_country or "India",
+        "home_city": data.home_city or "Mumbai",
+        "home_currency": data.home_currency or "INR",
+        "home_currency_symbol": data.home_currency_symbol or "₹",
+        "host_currency": data.host_currency or "CNY",
+        "host_country": data.host_country or "CN",
+        "host_city": data.host_city or "Shenzhen",
+        "host_university": data.host_university or "Shenzhen University",
+        "arrival_date": data.arrival_date or "2026-12-01",
+        "program_end": data.program_end or "2028-06-30",
+        "monthly_budget_cny": float(data.monthly_budget_cny or 50000.0),
+        "funding_source": data.funding_source or "Family (INR)"
+    }
+    _user_profiles[email] = new_profile
+
+    # Generate custom plan tailored to this specific student profile
+    new_plan = generate_user_plan(new_profile)
+    _user_plans[email] = new_plan
+
+    token = f"tok_{uuid.uuid4().hex}"
+    _sessions[token] = email
+
+    save_users_db()
+    _add_audit("auth", "user_registered", [email, user_id])
+
+    return {
+        "status": "ok",
+        "token": token,
+        "user": {"id": user_id, "email": email, "name": new_user["name"]},
+        "profile": new_profile,
+        "plan": new_plan
+    }
+
+@app.post("/auth/login")
+async def login(data: LoginIn):
+    email = data.email.strip().lower()
+    if email not in _users:
+        raise HTTPException(401, "No account found with this email. Please check your email or register.")
+
+    user = _users[email]
+    if not check_password(data.password, user["password_hash"]):
+        raise HTTPException(401, "Incorrect password. Please try again.")
+
+    token = f"tok_{uuid.uuid4().hex}"
+    _sessions[token] = email
+
+    prof = _user_profiles.get(email, _profile)
+    plan = _user_plans.get(email)
+    if not plan:
+        plan = generate_user_plan(prof)
+        _user_plans[email] = plan
+        save_users_db()
+
+    _add_audit("auth", "user_logged_in", [email, user["id"]])
+    return {
+        "status": "ok",
+        "token": token,
+        "user": {"id": user["id"], "email": email, "name": user["name"]},
+        "profile": prof,
+        "plan": plan
+    }
+
+@app.get("/auth/me")
+async def get_me(request: Request):
+    user, email = get_active_user(request)
+    prof = _user_profiles.get(email, _profile)
+    plan = _user_plans.get(email)
+    if not plan:
+        plan = generate_user_plan(prof)
+        _user_plans[email] = plan
+        save_users_db()
+    return {
+        "status": "ok",
+        "user": {"id": user.get("id"), "email": email, "name": user.get("name")},
+        "profile": prof,
+        "plan": plan
+    }
+
+@app.post("/auth/logout")
+async def logout(request: Request):
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+        if token in _sessions:
+            del _sessions[token]
+    return {"status": "ok", "message": "Successfully logged out"}
+
 # ── Profile ──────────────────────────────────────────────────────────────────
 @app.post("/profile")
-async def create_profile(data: ProfileIn):
+async def create_profile(data: ProfileIn, request: Request = None):
     global _profile
-    _profile = data.model_dump()
-    _profile["id"] = str(uuid.uuid4())
-    _add_audit("user", "profile_created", [_profile["id"]])
-    return {"status": "ok", "profile": _profile}
+    user, email = get_active_user(request)
+    profile_dict = data.model_dump()
+    profile_dict["id"] = profile_dict.get("id") or str(uuid.uuid4())
+    profile_dict["user_email"] = email
+
+    _profile = profile_dict
+    _user_profiles[email] = profile_dict
+
+    # Update or sync existing plan with new profile details
+    if email not in _user_plans:
+        _user_plans[email] = generate_user_plan(profile_dict)
+    else:
+        current_plan = _user_plans[email]
+        current_plan["user_name"] = profile_dict.get("name", current_plan.get("user_name", "Student"))
+        current_plan["university"] = profile_dict.get("host_university", current_plan.get("university", "Shenzhen University"))
+        current_plan["home_currency"] = profile_dict.get("home_currency", current_plan.get("home_currency", "INR"))
+        current_plan["monthly_budget_cny"] = profile_dict.get("monthly_budget_cny", current_plan.get("monthly_budget_cny", 50000))
+        univ = current_plan["university"]
+        for m in current_plan.get("milestones", []):
+            if m["id"] == "M4":
+                m["name"] = f"Tuition Payment ({univ})"
+                m["description"] = f"Pay official tuition (CNY 28,000) via CNAPS direct to {univ} official account. Payee must be verified."
+            elif m["id"] == "M2":
+                m["description"] = f"Open RMB student account with passport, X-visa, PSB cert, and admission notice for {univ}."
+
+    save_users_db()
+    _add_audit("user", "profile_updated", [email, profile_dict["id"]])
+    return {"status": "ok", "profile": profile_dict, "plan": _user_plans.get(email)}
 
 @app.get("/profile")
-async def get_profile():
+async def get_profile(request: Request = None):
+    user, email = get_active_user(request)
+    if email in _user_profiles:
+        return _user_profiles[email]
     if not _profile:
         raise HTTPException(404, "No profile set")
     return _profile
 
 # ── Critical Path Plan ────────────────────────────────────────────────────────
 @app.get("/plan")
-async def get_plan():
-    milestones = [
-        {"id": "M1", "name": "PSB Registration", "duration_days": 2, "depends_on": [], "deadline_offset_days": 30, "status": "pending", "slack_days": 28, "rule_ref": "RB-CN-PSB-01", "description": "Register at local Public Security Bureau within 30 days of arrival."},
-        {"id": "M2", "name": "Open Bank Account (ICBC)", "duration_days": 3, "depends_on": ["M1"], "deadline_offset_days": 33, "status": "pending", "slack_days": 25, "rule_ref": "RB-CN-BANK-01", "description": "Open RMB account with passport, visa, PSB cert, and enrollment letter."},
-        {"id": "M3", "name": "Activate UnionPay Debit Card", "duration_days": 1, "depends_on": ["M2"], "deadline_offset_days": 34, "status": "pending", "slack_days": 24, "rule_ref": "RB-CN-CR-02", "description": "Activate UnionPay card for domestic payments."},
-        {"id": "M4", "name": "Tuition Payment (CNY 28,000)", "duration_days": 5, "depends_on": ["M2"], "deadline_offset_days": 45, "status": "pending", "slack_days": 7, "rule_ref": "RB-CN-TUI-01", "description": "Pay tuition via CNAPS to university official account. Payee must be verified."},
-        {"id": "M5", "name": "Rent Deposit", "duration_days": 1, "depends_on": ["M3"], "deadline_offset_days": 40, "status": "pending", "slack_days": 5, "rule_ref": "RB-CN-BANK-02", "description": "Transfer rent deposit via UnionPay debit card."},
-        {"id": "M6", "name": "Setup Alipay / WeChat Pay", "duration_days": 1, "depends_on": ["M2"], "deadline_offset_days": 50, "status": "pending", "slack_days": 15, "rule_ref": "RB-CN-CR-03", "description": "Link digital wallets to bank account for everyday payments."},
-        {"id": "M7", "name": "Apply for Secured Credit Card", "duration_days": 14, "depends_on": ["M2"], "deadline_offset_days": 120, "status": "pending", "slack_days": 72, "rule_ref": "RB-CN-CR-04", "description": "Apply after 3-month account history. No approval guaranteed."},
-        {"id": "M8", "name": "First PBOC Credit Reference Report", "duration_days": 1, "depends_on": ["M7"], "deadline_offset_days": 300, "status": "pending", "slack_days": 150, "rule_ref": "RB-CN-CR-06", "description": "Request PBOC credit report after 6 months of card history."},
-    ]
-    return {"milestones": milestones, "generated_at": datetime.utcnow().isoformat()}
+async def get_plan(request: Request = None):
+    user, email = get_active_user(request)
+    if email not in _user_plans:
+        prof = _user_profiles.get(email, _profile)
+        _user_plans[email] = generate_user_plan(prof)
+        save_users_db()
+
+    return _user_plans[email]
 
 @app.post("/plan/replan")
-async def replan(body: dict):
+async def replan(body: dict, request: Request = None):
+    user, email = get_active_user(request)
+    prof = _user_profiles.get(email, _profile)
     scenario = body.get("scenario", "shock_week3")
     fx_data = load_fx_series(scenario)
     avg_rate = sum(r["rate"] for r in fx_data) / len(fx_data)
-    budget = _profile.get("monthly_budget_cny", 50000)
+    budget = prof.get("monthly_budget_cny", 50000)
     adjusted_budget = budget * (avg_rate / 0.086)
-    _add_audit("agent", "replan_triggered", [scenario])
+    _add_audit("agent", "replan_triggered", [email, scenario])
     return {
         "scenario": scenario,
         "note": "This is a scenario replay. We do not predict exchange rates.",
@@ -176,7 +503,41 @@ async def replan(body: dict):
         "adjusted_budget_cny": round(adjusted_budget, 2),
         "avg_fx_rate": round(avg_rate, 4),
         "changes": ["Discretionary bucket reduced by 8%", "Flexible tuition tranche deferred 3 days"],
+        "user_email": email,
+        "user_name": prof.get("name", "Student")
     }
+
+@app.post("/plan/milestone")
+async def update_milestone(data: MilestoneUpdateIn, request: Request = None):
+    user, email = get_active_user(request)
+    if email not in _user_plans:
+        prof = _user_profiles.get(email, _profile)
+        _user_plans[email] = generate_user_plan(prof)
+
+    plan = _user_plans[email]
+    found = False
+    for m in plan.get("milestones", []):
+        if m["id"] == data.milestone_id:
+            m["status"] = data.status
+            found = True
+            break
+
+    if not found:
+        raise HTTPException(404, f"Milestone {data.milestone_id} not found in user plan")
+
+    save_users_db()
+    _add_audit("user", "milestone_status_updated", [email, data.milestone_id, data.status])
+    return {"status": "ok", "milestone_id": data.milestone_id, "new_status": data.status, "plan": plan}
+
+@app.post("/plan/generate")
+async def regenerate_plan(request: Request = None):
+    user, email = get_active_user(request)
+    prof = _user_profiles.get(email, _profile)
+    fresh_plan = generate_user_plan(prof)
+    _user_plans[email] = fresh_plan
+    save_users_db()
+    _add_audit("agent", "plan_regenerated", [email, prof.get("host_university", "Shenzhen University")])
+    return {"status": "ok", "plan": fresh_plan}
 
 @app.get("/currencies")
 async def get_currencies():

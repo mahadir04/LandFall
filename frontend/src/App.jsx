@@ -6,12 +6,30 @@ import { CURRENCIES, UNIVERSITIES } from './currencies'
 const API = 'http://localhost:8000'
 
 // ── API helpers ──────────────────────────────────────────────────────────────
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('landfall_token')
+  const email = localStorage.getItem('landfall_user_email')
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  if (email) headers['X-User-Email'] = email
+  return headers
+}
+
 const api = {
-  get: (path) => fetch(`${API}${path}`).then(r => r.json()),
+  get: (path) => fetch(`${API}${path}`, { headers: getAuthHeaders() }).then(async r => {
+    const data = await r.json()
+    if (!r.ok) throw new Error(data.detail || 'Request failed')
+    return data
+  }),
   post: (path, body) => fetch(`${API}${path}`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST',
+    headers: getAuthHeaders(),
     body: JSON.stringify(body)
-  }).then(r => r.json()),
+  }).then(async r => {
+    const data = await r.json()
+    if (!r.ok) throw new Error(data.detail || 'Request failed')
+    return data
+  }),
 }
 
 // ── Sidebar nav items ────────────────────────────────────────────────────────
@@ -67,7 +85,7 @@ function ProfileModal({ profile, isOpen, onClose, onSave }) {
     setLoading(true)
     try {
       const res = await api.post('/profile', form)
-      onSave(res.profile)
+      onSave(res.profile, res.plan)
       onClose()
     } finally {
       setLoading(false)
@@ -187,10 +205,19 @@ function ProfileModal({ profile, isOpen, onClose, onSave }) {
   )
 }
 
-// ── Onboarding Screen ────────────────────────────────────────────────────────
-function OnboardingScreen({ onComplete }) {
+// ── Authentication & Onboarding Screen ──────────────────────────────────────
+function AuthScreen({ onComplete }) {
+  const [tab, setTab] = useState('signin') // 'signin' | 'register'
+  const [loginEmail, setLoginEmail] = useState('priya@szu.edu.cn')
+  const [loginPassword, setLoginPassword] = useState('password123')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  // Registration form
   const [selectedCurrency, setSelectedCurrency] = useState(CURRENCIES[0])
-  const [form, setForm] = useState({
+  const [regForm, setRegForm] = useState({
+    email: '',
+    password: '',
     name: CURRENCIES[0].defaultName,
     home_country: CURRENCIES[0].country,
     home_city: CURRENCIES[0].defaultCity,
@@ -205,14 +232,13 @@ function OnboardingScreen({ onComplete }) {
     monthly_budget_cny: 50000,
     funding_source: CURRENCIES[0].fundingOptions[0]
   })
-  const [loading, setLoading] = useState(false)
 
   const handleCountrySelect = (code) => {
     const c = CURRENCIES.find(item => item.code === code) || CURRENCIES[0]
     setSelectedCurrency(c)
-    setForm(f => ({
+    setRegForm(f => ({
       ...f,
-      name: c.defaultName,
+      name: f.name === selectedCurrency.defaultName ? c.defaultName : f.name,
       home_country: c.country,
       home_city: c.defaultCity,
       home_currency: c.code,
@@ -221,186 +247,382 @@ function OnboardingScreen({ onComplete }) {
     }))
   }
 
-  const handleSubmit = async (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault()
+    setError('')
     setLoading(true)
     try {
-      const res = await api.post('/profile', form)
-      onComplete(res.profile)
-    } catch {
+      const res = await api.post('/auth/login', {
+        email: loginEmail.trim(),
+        password: loginPassword
+      })
+      if (res.status === 'ok') {
+        localStorage.setItem('landfall_token', res.token)
+        localStorage.setItem('landfall_user_email', res.user.email)
+        onComplete(res.user, res.profile, res.plan)
+      }
+    } catch (err) {
+      setError(err.message || 'Login failed. Please check your credentials.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRegisterSubmit = async (e) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      const res = await api.post('/auth/register', regForm)
+      if (res.status === 'ok') {
+        localStorage.setItem('landfall_token', res.token)
+        localStorage.setItem('landfall_user_email', res.user.email)
+        onComplete(res.user, res.profile, res.plan)
+      }
+    } catch (err) {
+      setError(err.message || 'Registration failed. Please check your inputs.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleQuickLogin = async (email, password) => {
+    setError('')
+    setLoading(true)
+    try {
+      const res = await api.post('/auth/login', { email, password })
+      if (res.status === 'ok') {
+        localStorage.setItem('landfall_token', res.token)
+        localStorage.setItem('landfall_user_email', res.user.email)
+        onComplete(res.user, res.profile, res.plan)
+      }
+    } catch (err) {
+      setError(err.message || 'Quick login failed')
+    } finally {
       setLoading(false)
     }
   }
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse at top, #0d2035 0%, #0d1117 70%)', padding: '30px 16px' }}>
-      <div className="onboarding-container fade-in" style={{ maxWidth: 580 }}>
-        <div className="onboarding-logo">
-          <div className="onboarding-logo-icon">✈️</div>
-          <div className="onboarding-title">Welcome to Landfall</div>
-          <div className="onboarding-sub">Global Financial Landing Assistant for China</div>
+      <div className="onboarding-container fade-in" style={{ maxWidth: 580, width: '100%' }}>
+        <div className="onboarding-logo" style={{ textAlign: 'center', marginBottom: 20 }}>
+          <div className="onboarding-logo-icon" style={{ margin: '0 auto 12px' }}>✈️</div>
+          <div className="onboarding-title" style={{ fontSize: 26, fontWeight: 800 }}>Welcome to Landfall</div>
+          <div className="onboarding-sub" style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
+            AI Financial Landing Assistant for International Students in China
+          </div>
         </div>
 
-        <div className="notification notification-info">
+        <div className="notification notification-info" style={{ marginBottom: 16 }}>
           <span>ℹ️</span>
-          <span>Simulated environment · No real money moves · Designed for students worldwide</span>
+          <span>Each student profile has an individual isolated critical path plan, milestones, and budget.</span>
         </div>
 
-        <form className="onboarding-card card" onSubmit={handleSubmit}>
-          <div className="card-title">Select Origin & Destination</div>
+        {error && (
+          <div className="notification notification-error fade-in" style={{ marginBottom: 16 }}>
+            <span>⚠️</span>
+            <span>{error}</span>
+          </div>
+        )}
 
-          <div className="input-group">
-            <label className="input-label">Home Country & Currency</label>
-            <select
-              className="select"
-              value={form.home_currency}
-              onChange={e => handleCountrySelect(e.target.value)}
+        <div className="card" style={{ padding: 24 }}>
+          {/* Navigation Tabs */}
+          <div className="auth-nav-tabs">
+            <button
+              className={`auth-nav-tab ${tab === 'signin' ? 'active' : ''}`}
+              onClick={() => { setTab('signin'); setError('') }}
             >
-              {CURRENCIES.map(c => (
-                <option key={c.code} value={c.code}>
-                  {c.flag} {c.country} — {c.code} ({c.symbol}) · 1 CNY ≈ {c.cnyToCurrency} {c.code}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid-2">
-            <div className="input-group">
-              <label className="input-label">Student Name</label>
-              <input
-                className="input"
-                type="text"
-                value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="Full name"
-                required
-              />
-            </div>
-            <div className="input-group">
-              <label className="input-label">Home City</label>
-              <input
-                className="input"
-                type="text"
-                value={form.home_city}
-                onChange={e => setForm(f => ({ ...f, home_city: e.target.value }))}
-                placeholder="City of departure"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="input-group">
-            <label className="input-label">Target University (Shenzhen)</label>
-            <select
-              className="select"
-              value={form.host_university}
-              onChange={e => setForm(f => ({ ...f, host_university: e.target.value }))}
+              🔑 Sign In
+            </button>
+            <button
+              className={`auth-nav-tab ${tab === 'register' ? 'active' : ''}`}
+              onClick={() => { setTab('register'); setError('') }}
             >
-              {UNIVERSITIES.map(u => (
-                <option key={u.code} value={u.name}>
-                  🎓 {u.name} ({u.cn})
-                </option>
-              ))}
-            </select>
+              👤 Create Student Account
+            </button>
           </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <label className="input-label">Journey Route</label>
-            <div className="journey-row">
-              <div className="journey-country">
-                <div className="journey-label">Home Origin</div>
-                <div className="journey-value">{selectedCurrency.flag} {form.home_city}, {form.home_country} ({form.home_currency})</div>
+          {tab === 'signin' ? (
+            <form onSubmit={handleLoginSubmit}>
+              <div className="input-group">
+                <label className="input-label">Student Email</label>
+                <input
+                  className="input"
+                  type="email"
+                  value={loginEmail}
+                  onChange={e => setLoginEmail(e.target.value)}
+                  placeholder="student@university.edu"
+                  required
+                />
               </div>
-              <div className="journey-arrow">✈️</div>
-              <div className="journey-country">
-                <div className="journey-label">Destination</div>
-                <div className="journey-value">🇨🇳 Shenzhen, China (CNY)</div>
+
+              <div className="input-group">
+                <label className="input-label">Password</label>
+                <input
+                  className="input"
+                  type="password"
+                  value={loginPassword}
+                  onChange={e => setLoginPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  required
+                />
               </div>
-            </div>
-          </div>
 
-          <div className="card-title" style={{ marginTop: 16 }}>Arrival & Funding</div>
-          <div className="grid-2">
-            <div className="input-group">
-              <label className="input-label">Arrival Date</label>
-              <input className="input" type="date" value={form.arrival_date}
-                onChange={e => setForm(f => ({ ...f, arrival_date: e.target.value }))} />
-            </div>
-            <div className="input-group">
-              <label className="input-label">Program Ends</label>
-              <input className="input" type="date" value={form.program_end}
-                onChange={e => setForm(f => ({ ...f, program_end: e.target.value }))} />
-            </div>
-          </div>
+              <button className="btn btn-primary btn-full" type="submit" disabled={loading} style={{ padding: '12px 18px', fontSize: 15, marginTop: 4 }}>
+                {loading ? 'Logging In...' : 'Sign In to My Profile & Plan →'}
+              </button>
 
-          <div className="grid-2">
-            <div className="input-group">
-              <label className="input-label">Main Funding Rail</label>
-              <select className="select" value={form.funding_source}
-                onChange={e => setForm(f => ({ ...f, funding_source: e.target.value }))}>
-                {selectedCurrency.fundingOptions.map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-                <option value="Self-Funded">Self-Funded</option>
-              </select>
-            </div>
-            <div className="input-group">
-              <label className="input-label">
-                Initial Budget (CNY)
-                <span style={{ color: 'var(--text-muted)', marginLeft: 6, fontSize: 10 }}>
-                  ≈ {selectedCurrency.symbol}{Math.round(form.monthly_budget_cny * selectedCurrency.cnyToCurrency).toLocaleString()}
-                </span>
-              </label>
-              <input className="input" type="number" value={form.monthly_budget_cny}
-                onChange={e => setForm(f => ({ ...f, monthly_budget_cny: Number(e.target.value) }))} />
-            </div>
-          </div>
+              {/* Quick 1-Click Demo Accounts */}
+              <div className="quick-accounts-section">
+                <div className="quick-accounts-title">
+                  <span>⚡ Quick 1-Click Demo Logins</span>
+                  <span style={{ fontSize: 10, color: 'var(--accent)' }}>Instant Review</span>
+                </div>
+                <div className="quick-accounts-grid">
+                  <button
+                    type="button"
+                    className="quick-account-btn"
+                    onClick={() => handleQuickLogin('priya@szu.edu.cn', 'password123')}
+                    disabled={loading}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>🇮🇳 Priya Sharma</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>priya@szu.edu.cn · Shenzhen Univ (INR ₹)</div>
+                    </div>
+                    <span className="badge badge-accent">Load Plan</span>
+                  </button>
 
-          <button className="btn btn-primary btn-full" type="submit" disabled={loading}
-            style={{ marginTop: 12, padding: '14px 20px', fontSize: 16 }}>
-            {loading ? <span className="spinner">⚙️</span> : '⚡'} Generate My Custom Landing Plan
-          </button>
-        </form>
+                  <button
+                    type="button"
+                    className="quick-account-btn"
+                    onClick={() => handleQuickLogin('kenji@sustech.edu.cn', 'password123')}
+                    disabled={loading}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>🇯🇵 Kenji Sato</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>kenji@sustech.edu.cn · SUSTech (JPY ¥)</div>
+                    </div>
+                    <span className="badge badge-accent">Load Plan</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="quick-account-btn"
+                    onClick={() => handleQuickLogin('sarah@intl.edu', 'password123')}
+                    disabled={loading}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>🇬🇧 Sarah Jenkins</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>sarah@intl.edu · Tsinghua SIGS (GBP £)</div>
+                    </div>
+                    <span className="badge badge-accent">Load Plan</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={handleRegisterSubmit}>
+              <div className="grid-2">
+                <div className="input-group">
+                  <label className="input-label">Student Email</label>
+                  <input
+                    className="input"
+                    type="email"
+                    value={regForm.email}
+                    onChange={e => setRegForm(f => ({ ...f, email: e.target.value }))}
+                    placeholder="e.g. alex@gmail.com"
+                    required
+                  />
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Create Password</label>
+                  <input
+                    className="input"
+                    type="password"
+                    value={regForm.password}
+                    onChange={e => setRegForm(f => ({ ...f, password: e.target.value }))}
+                    placeholder="Min 4 characters"
+                    minLength={4}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid-2">
+                <div className="input-group">
+                  <label className="input-label">Full Name</label>
+                  <input
+                    className="input"
+                    type="text"
+                    value={regForm.name}
+                    onChange={e => setRegForm(f => ({ ...f, name: e.target.value }))}
+                    placeholder="Student name"
+                    required
+                  />
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Home City</label>
+                  <input
+                    className="input"
+                    type="text"
+                    value={regForm.home_city}
+                    onChange={e => setRegForm(f => ({ ...f, home_city: e.target.value }))}
+                    placeholder="Departure city"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Home Country & Currency</label>
+                <select
+                  className="select"
+                  value={regForm.home_currency}
+                  onChange={e => handleCountrySelect(e.target.value)}
+                >
+                  {CURRENCIES.map(c => (
+                    <option key={c.code} value={c.code}>
+                      {c.flag} {c.country} — {c.code} ({c.symbol}) · 1 CNY ≈ {c.cnyToCurrency} {c.code}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Destination University (Shenzhen)</label>
+                <select
+                  className="select"
+                  value={regForm.host_university}
+                  onChange={e => setRegForm(f => ({ ...f, host_university: e.target.value }))}
+                >
+                  {UNIVERSITIES.map(u => (
+                    <option key={u.code} value={u.name}>
+                      🎓 {u.name} ({u.cn})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid-2">
+                <div className="input-group">
+                  <label className="input-label">Arrival Date</label>
+                  <input
+                    className="input"
+                    type="date"
+                    value={regForm.arrival_date}
+                    onChange={e => setRegForm(f => ({ ...f, arrival_date: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Program Ends</label>
+                  <input
+                    className="input"
+                    type="date"
+                    value={regForm.program_end}
+                    onChange={e => setRegForm(f => ({ ...f, program_end: e.target.value }))}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid-2">
+                <div className="input-group">
+                  <label className="input-label">Funding Rail</label>
+                  <select
+                    className="select"
+                    value={regForm.funding_source}
+                    onChange={e => setRegForm(f => ({ ...f, funding_source: e.target.value }))}
+                  >
+                    {selectedCurrency.fundingOptions.map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                    <option value="Self-Funded">Self-Funded</option>
+                  </select>
+                </div>
+                <div className="input-group">
+                  <label className="input-label">
+                    Initial Budget (CNY)
+                    <span style={{ color: 'var(--text-muted)', marginLeft: 6, fontSize: 10 }}>
+                      ≈ {selectedCurrency.symbol}{Math.round(regForm.monthly_budget_cny * selectedCurrency.cnyToCurrency).toLocaleString()}
+                    </span>
+                  </label>
+                  <input
+                    className="input"
+                    type="number"
+                    value={regForm.monthly_budget_cny}
+                    onChange={e => setRegForm(f => ({ ...f, monthly_budget_cny: Number(e.target.value) }))}
+                    required
+                  />
+                </div>
+              </div>
+
+              <button
+                className="btn btn-primary btn-full"
+                type="submit"
+                disabled={loading}
+                style={{ marginTop: 12, padding: '14px 20px', fontSize: 16 }}
+              >
+                {loading ? 'Creating Profile & Generating Plan...' : '⚡ Create Profile & Generate My Landing Plan'}
+              </button>
+            </form>
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
 // ── Dashboard ────────────────────────────────────────────────────────────────
-function Dashboard({ profile, onNavigate }) {
+function Dashboard({ profile, plan, onNavigate }) {
   const [fxRates, setFxRates] = useState([])
 
   useEffect(() => {
     api.post('/fx/scenario', { scenario: 'baseline' }).then(res => {
       setFxRates(res?.rates || [])
-    })
+    }).catch(() => {})
   }, [])
+
+  const curInfo = CURRENCIES.find(c => c.code === profile?.home_currency) || CURRENCIES[0]
+  const univName = profile?.host_university || 'Shenzhen University'
+  const studentName = profile?.name || 'Student'
+  const displayMilestones = plan?.milestones?.slice(0, 4) || [
+    { name: 'PSB Registration', status: 'pending', tag: '30-Day Window', critical: true },
+    { name: 'Open Bank Account (ICBC)', status: 'pending', tag: 'Depends on PSB', critical: false },
+    { name: `Tuition Remittance (${univName})`, status: 'pending', tag: '¥28,000 due', critical: false },
+    { name: 'UnionPay Debit Card Activation', status: 'pending', tag: 'Cashless Setup', critical: false },
+  ]
 
   return (
     <div style={{ padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: 22 }}>
       <div className="notification notification-info fade-in" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontSize: 20 }}>✈️</span>
-          <span>Welcome Priya! Financial landing plan for <strong style={{ color: 'var(--accent)' }}>Shenzhen</strong>. 6 weeks until arrival; critical path active.</span>
+          <span>
+            Welcome <strong style={{ color: 'var(--text-primary)' }}>{studentName}</strong>! Landing plan active for <strong style={{ color: 'var(--accent)' }}>{univName}</strong> in Shenzhen.
+          </span>
         </div>
         <span className="badge badge-accent">Host: China (CNY)</span>
       </div>
 
       <div className="grid-3">
         <div className="card stat-card floating-card">
-          <div className="card-title">Initial Allocated Budget</div>
-          <div className="stat-value" style={{ color: 'var(--accent)' }}>¥{Number(profile.monthly_budget_cny || 50000).toLocaleString()}</div>
-          <div className="stat-label">Family Funded (INR)</div>
+          <div className="card-title">Allocated Budget</div>
+          <div className="stat-value" style={{ color: 'var(--accent)' }}>¥{Number(profile?.monthly_budget_cny || 50000).toLocaleString()}</div>
+          <div className="stat-label">
+            ≈ {curInfo.symbol}{Math.round((profile?.monthly_budget_cny || 50000) * curInfo.cnyToCurrency).toLocaleString()} {curInfo.code}
+          </div>
         </div>
         <div className="card stat-card floating-card" style={{ animationDelay: '0.4s' }}>
           <div className="card-title">Days to Arrival</div>
           <div className="stat-value" style={{ color: 'var(--yellow)' }}>42</div>
-          <div className="stat-label">Arrival: Dec 1, 2026</div>
+          <div className="stat-label">Arrival: {profile?.arrival_date || 'Dec 1, 2026'}</div>
         </div>
         <div className="card stat-card floating-card" style={{ animationDelay: '0.8s' }}>
-          <div className="card-title">INR / CNY Mid Rate</div>
-          <div className="stat-value" style={{ color: 'var(--green)' }}>0.0860</div>
-          <div className="stat-label">1 INR = 0.0860 CNY</div>
+          <div className="card-title">{curInfo.code} / CNY Benchmark</div>
+          <div className="stat-value" style={{ color: 'var(--green)' }}>{curInfo.midRateToCNY}</div>
+          <div className="stat-label">1 {curInfo.code} = {curInfo.midRateToCNY} CNY</div>
         </div>
       </div>
 
@@ -408,11 +630,11 @@ function Dashboard({ profile, onNavigate }) {
       <div className="grid-2">
         <div className="card fade-in">
           <div className="card-title">Multi-Currency Budget Allocation</div>
-          <BudgetDonutChart totalCNY={profile.monthly_budget_cny || 50000} />
+          <BudgetDonutChart totalCNY={profile?.monthly_budget_cny || 50000} />
         </div>
 
         <div className="card fade-in">
-          <div className="card-title">INR / CNY Exchange Rate Trend (30 Days)</div>
+          <div className="card-title">{curInfo.code} / CNY Exchange Rate Trend (30 Days)</div>
           <FXSplineChart rates={fxRates.slice(-14)} scenario="baseline" />
         </div>
       </div>
@@ -422,20 +644,22 @@ function Dashboard({ profile, onNavigate }) {
 
       <div className="grid-2">
         <div className="card">
-          <div className="card-title">Milestone Status (Critical Path)</div>
+          <div className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Milestone Status (Critical Path)</span>
+            <button className="btn btn-ghost btn-sm" onClick={() => onNavigate && onNavigate('plan')} style={{ fontSize: 11, color: 'var(--accent)' }}>
+              View All Milestones →
+            </button>
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {[
-              { name: 'PSB Alien Registration', status: 'pending', tag: '30-Day Window', critical: true },
-              { name: 'Open Bank Account (ICBC)', status: 'pending', tag: 'Depends on PSB', critical: false },
-              { name: 'Tuition Remittance (CNAPS)', status: 'pending', tag: '¥28,000 due (Slack: 7d)', critical: false },
-              { name: 'UnionPay Debit Card Activation', status: 'pending', tag: 'Cashless Setup', critical: false },
-            ].map((m, i) => (
+            {displayMilestones.map((m, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span className={`status-dot ${m.critical ? 'dot-red' : 'dot-orange'}`}></span>
+                  <span className={`status-dot ${m.status === 'done' ? 'dot-green' : m.critical ? 'dot-red' : 'dot-orange'}`}></span>
                   <span style={{ fontSize: 13, fontWeight: 500 }}>{m.name}</span>
                 </div>
-                <span className={`badge ${m.critical ? 'badge-red' : 'badge-muted'}`}>{m.tag}</span>
+                <span className={`badge ${m.status === 'done' ? 'badge-green' : m.critical ? 'badge-red' : 'badge-muted'}`}>
+                  {m.status === 'done' ? '✓ DONE' : m.tag || 'PENDING'}
+                </span>
               </div>
             ))}
           </div>
@@ -445,10 +669,10 @@ function Dashboard({ profile, onNavigate }) {
           <div className="card-title">Quick Navigation</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {[
+              { icon: '📋', label: 'Critical Path & Checklists', page: 'plan', desc: 'Track and complete your 8 landing milestones' },
+              { icon: '🎓', label: 'Verify Tuition Payee', page: 'tuition', desc: `Authenticate CNAPS account for ${univName}` },
+              { icon: '💱', label: 'Compare Remittance Routes', page: 'remittance', desc: `Find lowest landed cost in ${curInfo.code}` },
               { icon: '🛡', label: 'Scam Shield Analyzer', page: 'scam', desc: 'Screen suspicious tuition discount offers' },
-              { icon: '🎓', label: 'Verify Tuition Payee', page: 'tuition', desc: 'Authenticate CNAPS university accounts' },
-              { icon: '💱', label: 'Compare Remittance Routes', page: 'remittance', desc: 'Find lowest landed cost to Shenzhen' },
-              { icon: '📄', label: 'Document Readiness Check', page: 'docs', desc: 'Prepare ICBC & BOC account proofs' },
             ].map((a, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 10, cursor: 'pointer', border: '1px solid var(--border)', transition: 'all 0.2s' }}
                 onClick={() => onNavigate && onNavigate(a.page)}>
@@ -468,30 +692,94 @@ function Dashboard({ profile, onNavigate }) {
 }
 
 // ── Critical Path Plan ────────────────────────────────────────────────────────
-function PlanScreen() {
-  const [plan, setPlan] = useState(null)
+function PlanScreen({ profile, plan: initialPlan, onPlanUpdate }) {
+  const [plan, setPlan] = useState(initialPlan)
   const [replanResult, setReplanResult] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [togglingId, setTogglingId] = useState(null)
 
   useEffect(() => {
-    api.get('/plan').then(setPlan)
-  }, [])
+    if (!initialPlan) {
+      api.get('/plan').then(res => {
+        setPlan(res)
+        if (onPlanUpdate) onPlanUpdate(res)
+      })
+    } else {
+      setPlan(initialPlan)
+    }
+  }, [initialPlan])
 
   const runReplan = async (scenario) => {
     setLoading(true)
-    const res = await api.post('/plan/replan', { scenario })
-    setReplanResult(res)
-    setLoading(false)
+    try {
+      const res = await api.post('/plan/replan', { scenario })
+      setReplanResult(res)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRegenerate = async () => {
+    setLoading(true)
+    try {
+      const res = await api.post('/plan/generate', {})
+      if (res?.status === 'ok') {
+        setPlan(res.plan)
+        if (onPlanUpdate) onPlanUpdate(res.plan)
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleToggleMilestone = async (milestoneId, newStatus) => {
+    setTogglingId(milestoneId)
+    try {
+      const res = await api.post('/plan/milestone', {
+        milestone_id: milestoneId,
+        status: newStatus
+      })
+      if (res?.status === 'ok') {
+        setPlan(res.plan)
+        if (onPlanUpdate) onPlanUpdate(res.plan)
+      }
+    } finally {
+      setTogglingId(null)
+    }
   }
 
   const statusColor = { done: 'var(--green)', pending: 'var(--orange)', blocked: 'var(--red)', locked: 'var(--text-muted)' }
   const statusDot = { done: 'dot-green', pending: 'dot-orange', blocked: 'dot-red', locked: 'dot-muted' }
 
+  const milestones = plan?.milestones || []
+  const completedCount = milestones.filter(m => m.status === 'done').length
+  const totalCount = milestones.length || 8
+  const pct = Math.round((completedCount / (totalCount || 1)) * 100)
+
   return (
     <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div className="notification notification-info">
-        <span>📋</span>
-        <span>Critical Path Plan — 8 milestones from arrival to PBOC credit report. Zero-slack items are on the critical path.</span>
+      {/* Individual Plan Progress Card */}
+      <div className="plan-progress-card fade-in">
+        <div className="plan-progress-header">
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>📋 Landing Plan for {profile?.name || plan?.user_name || 'Student'}</span>
+              <span className="badge badge-accent">Individual Account Plan</span>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>
+              🎓 {profile?.host_university || plan?.university || 'Shenzhen University'} · Arriving {profile?.arrival_date || '2026-12-01'} · Allocated Budget: ¥{Number(profile?.monthly_budget_cny || 50000).toLocaleString()}
+            </div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: pct === 100 ? 'var(--green)' : 'var(--accent)' }}>
+              {completedCount} of {totalCount} Done ({pct}%)
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Interactive Critical Path</div>
+          </div>
+        </div>
+        <div className="progress-bar-track">
+          <div className="progress-bar-fill" style={{ width: `${pct}%` }}></div>
+        </div>
       </div>
 
       {replanResult && (
@@ -499,7 +787,8 @@ function PlanScreen() {
           <div className="card-title" style={{ color: 'var(--orange)' }}>🔄 Re-plan Result ({replanResult.scenario})</div>
           <div style={{ fontSize: 13, lineHeight: 1.7 }}>
             <div>⚠️ <em>{replanResult.note}</em></div>
-            <div style={{ marginTop: 8 }}>Avg FX Rate: <strong>{replanResult.avg_fx_rate}</strong></div>
+            <div style={{ marginTop: 8 }}>Student: <strong>{replanResult.user_name}</strong> ({replanResult.user_email})</div>
+            <div>Avg FX Rate: <strong>{replanResult.avg_fx_rate}</strong></div>
             <div>Original Budget: <strong>¥{replanResult.original_budget_cny?.toLocaleString()}</strong></div>
             <div>Adjusted Budget: <strong style={{ color: 'var(--orange)' }}>¥{replanResult.adjusted_budget_cny?.toLocaleString()}</strong></div>
             {replanResult.changes?.map((c, i) => <div key={i}>• {c}</div>)}
@@ -508,9 +797,15 @@ function PlanScreen() {
       )}
 
       <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div className="card-title" style={{ marginBottom: 0 }}>Milestones</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+          <div>
+            <div className="card-title" style={{ marginBottom: 2 }}>Individual Milestones & Action Items</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Click "Mark Complete" to update and save progress to your individual profile</div>
+          </div>
           <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-primary btn-sm" onClick={handleRegenerate} disabled={loading} title="Regenerate plan tailored to current university and dates">
+              {loading ? '⏳' : '⚡'} Regenerate Plan
+            </button>
             <button className="btn btn-secondary btn-sm" onClick={() => runReplan('shock_week3')} disabled={loading}>
               {loading ? '⏳' : '📈'} -8% FX Shock
             </button>
@@ -522,17 +817,22 @@ function PlanScreen() {
 
         {plan ? (
           <div className="milestone-list">
-            {plan.milestones.map((m, i) => (
+            {milestones.map((m, i) => (
               <div key={m.id} className="milestone-item fade-in">
                 <div className="milestone-indicator">
                   <div className="milestone-dot-outer" style={{ background: m.status === 'done' ? 'var(--green-dim)' : 'var(--bg-secondary)', border: `2px solid ${statusColor[m.status] || 'var(--border)'}` }}>
                     <span className={`status-dot ${statusDot[m.status] || 'dot-muted'}`}></span>
                   </div>
-                  {i < plan.milestones.length - 1 && <div className="milestone-line"></div>}
+                  {i < milestones.length - 1 && <div className="milestone-line"></div>}
                 </div>
-                <div className="milestone-content">
-                  <div className="milestone-name">{m.name}</div>
-                  <div className="milestone-meta">
+                <div className="milestone-content" style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span className="badge badge-muted" style={{ fontFamily: 'monospace', fontSize: 10 }}>{m.id}</span>
+                    <span className="milestone-name" style={{ textDecoration: m.status === 'done' ? 'line-through' : 'none', opacity: m.status === 'done' ? 0.75 : 1 }}>
+                      {m.name}
+                    </span>
+                  </div>
+                  <div className="milestone-meta" style={{ marginTop: 4 }}>
                     <span>{m.duration_days} day{m.duration_days !== 1 ? 's' : ''}</span>
                     {m.slack_days === 0
                       ? <span className="milestone-critical">🔴 Critical path</span>
@@ -542,13 +842,25 @@ function PlanScreen() {
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>{m.description}</div>
                 </div>
-                <div>
-                  <span className={`badge ${m.status === 'done' ? 'badge-green' : m.status === 'pending' ? 'badge-orange' : 'badge-muted'}`}>{m.status.toUpperCase()}</span>
+
+                {/* Interactive Status & Action Button */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, minWidth: 120 }}>
+                  <span className={`badge ${m.status === 'done' ? 'badge-green' : m.status === 'pending' ? 'badge-orange' : 'badge-muted'}`}>
+                    {m.status.toUpperCase()}
+                  </span>
+                  <button
+                    className={`milestone-toggle-btn ${m.status === 'done' ? 'done' : 'pending'}`}
+                    onClick={() => handleToggleMilestone(m.id, m.status === 'done' ? 'pending' : 'done')}
+                    disabled={togglingId === m.id}
+                    title={m.status === 'done' ? 'Click to reopen milestone' : 'Mark milestone complete'}
+                  >
+                    {togglingId === m.id ? '⏳' : m.status === 'done' ? '✓ Done (Reopen)' : '○ Mark Done'}
+                  </button>
                 </div>
               </div>
             ))}
           </div>
-        ) : <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 20 }}>⏳ Loading plan...</div>}
+        ) : <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 20 }}>⏳ Loading plan for your profile...</div>}
       </div>
     </div>
   )
@@ -1294,17 +1606,80 @@ function ChatPanel({ profile }) {
 
 // ── Main App ────────────────────────────────────────────────────────────────────
 export default function App() {
+  const [currentUser, setCurrentUser] = useState(null)
   const [profile, setProfile] = useState(null)
+  const [plan, setPlan] = useState(null)
   const [page, setPage] = useState('dashboard')
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
+  const [authLoading, setAuthLoading] = useState(true)
+
+  // Try restoring existing login session on mount
+  useEffect(() => {
+    const token = localStorage.getItem('landfall_token')
+    if (token) {
+      api.get('/auth/me').then(res => {
+        if (res?.status === 'ok') {
+          setCurrentUser(res.user)
+          setProfile(res.profile)
+          setPlan(res.plan)
+        }
+      }).catch(() => {
+        localStorage.removeItem('landfall_token')
+        localStorage.removeItem('landfall_user_email')
+      }).finally(() => {
+        setAuthLoading(false)
+      })
+    } else {
+      setAuthLoading(false)
+    }
+  }, [])
+
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout', {})
+    } catch {
+      // Ignore network errors on logout
+    }
+    localStorage.removeItem('landfall_token')
+    localStorage.removeItem('landfall_user_email')
+    setCurrentUser(null)
+    setProfile(null)
+    setPlan(null)
+  }
+
+  const handleAuthComplete = (user, prof, pl) => {
+    setCurrentUser(user)
+    setProfile(prof)
+    setPlan(pl)
+  }
+
+  const handleProfileSave = (updatedProf, updatedPlan) => {
+    setProfile(updatedProf)
+    if (updatedPlan) setPlan(updatedPlan)
+  }
+
+  if (authLoading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#080b11', color: 'var(--text-secondary)' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>✈️</div>
+          <div style={{ fontWeight: 600 }}>Loading Landfall Session...</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!currentUser || !profile) {
+    return <AuthScreen onComplete={handleAuthComplete} />
+  }
 
   const PAGES = {
-    dashboard: <Dashboard profile={profile || {}} onNavigate={(p) => setPage(p)} />,
-    plan: <PlanScreen />,
-    tuition: <TuitionScreen profile={profile || {}} />,
-    remittance: <RemittanceScreen profile={profile || {}} />,
+    dashboard: <Dashboard profile={profile} plan={plan} onNavigate={(p) => setPage(p)} />,
+    plan: <PlanScreen profile={profile} plan={plan} onPlanUpdate={(p) => setPlan(p)} />,
+    tuition: <TuitionScreen profile={profile} />,
+    remittance: <RemittanceScreen profile={profile} />,
     scam: <ScamScreen />,
-    fx: <FXScreen profile={profile || {}} />,
+    fx: <FXScreen profile={profile} />,
     docs: <DocsScreen />,
     credit: <CreditScreen />,
     audit: <AuditScreen />,
@@ -1312,13 +1687,8 @@ export default function App() {
   }
 
   const currentNav = NAV.find(n => n.id === page)
-
-  if (!profile) {
-    return <OnboardingScreen onComplete={(p) => setProfile(p)} />
-  }
-
   const curInfo = CURRENCIES.find(c => c.code === profile.home_currency) || CURRENCIES[0]
-  const avatarLetter = (profile.name || 'P')[0].toUpperCase()
+  const avatarLetter = (profile.name || currentUser.name || 'S')[0].toUpperCase()
 
   return (
     <div className="app-shell">
@@ -1346,18 +1716,32 @@ export default function App() {
         <div className="sidebar-profile">
           <div className="profile-badge">
             <div className="profile-avatar">{avatarLetter}</div>
-            <div style={{ flex: 1 }}>
-              <div className="profile-name">{profile.name || 'Student'}</div>
-              <div className="profile-tier">{curInfo.flag} {profile.home_currency || 'INR'} · Verified</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="profile-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {profile.name || currentUser.name || 'Student'}
+              </div>
+              <div className="profile-tier" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {curInfo.flag} {currentUser.email}
+              </div>
             </div>
-            <button
-              className="btn btn-ghost btn-sm"
-              style={{ padding: '4px 8px', fontSize: 13 }}
-              onClick={() => setIsProfileModalOpen(true)}
-              title="Change country, currency, or university"
-            >
-              ⚙️
-            </button>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{ padding: '4px 6px', fontSize: 13 }}
+                onClick={() => setIsProfileModalOpen(true)}
+                title="Edit profile & destination"
+              >
+                ⚙️
+              </button>
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{ padding: '4px 6px', fontSize: 13, color: 'var(--orange)' }}
+                onClick={handleLogout}
+                title="Switch account / Sign out"
+              >
+                🚪
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1388,6 +1772,18 @@ export default function App() {
               <span style={{ fontWeight: 700 }}>{profile.home_currency} ({profile.home_currency_symbol || curInfo.symbol})</span>
               <span style={{ fontSize: 10, color: 'var(--accent)' }}>▾ Switch Origin</span>
             </button>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={handleLogout}
+              style={{
+                borderRadius: 20, padding: '6px 12px', fontSize: 11,
+                border: '1px solid var(--border)',
+                color: 'var(--text-secondary)'
+              }}
+              title={`Logged in as ${currentUser.email}. Click to sign out.`}
+            >
+              🚪 Sign Out
+            </button>
             <span className="simulated-badge">SIMULATED</span>
           </div>
         </div>
@@ -1402,7 +1798,7 @@ export default function App() {
           profile={profile}
           isOpen={isProfileModalOpen}
           onClose={() => setIsProfileModalOpen(false)}
-          onSave={(p) => setProfile(p)}
+          onSave={handleProfileSave}
         />
       </div>
     </div>
