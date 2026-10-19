@@ -21,6 +21,10 @@ API_KEY = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
 _model_instance = None
 _genai_available = False
 
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning, module="google.generativeai")
+warnings.filterwarnings("ignore", category=FutureWarning, module="google.api_core")
+
 try:
     import google.generativeai as genai
     _genai_available = True
