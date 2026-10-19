@@ -72,6 +72,13 @@ async def generate_response(message: str, context: Optional[str] = None) -> Dict
             pass
 
     # 2. Deterministic Fallback Mode (100% reliable offline demo)
+    name = "Priya"
+    if context and "Student: " in context:
+        try:
+            name = context.split("Student: ")[1].split(" ")[0].strip()
+        except Exception:
+            name = "Priya"
+
     msg = message.lower()
     if any(w in msg for w in ["scam", "suspicious", "discount", "agent offer"]):
         text = "🛡 **Scam Shield activated.** I've analyzed the message. Please paste the suspicious text and I'll run a full signal analysis. Every payment must go directly to the university's official CNAPS account. [RB-CN-SCAM-01] [RB-CN-TUI-01]"
@@ -81,14 +88,14 @@ async def generate_response(message: str, context: Optional[str] = None) -> Dict
         text = "🏦 **Bank Account Setup.** You'll need: Passport, X1 Student Visa, PSB Registration Certificate (within 30 days of arrival), and Enrollment Certificate. ICBC minimum deposit: ¥20. Bank of China: ¥0. [RB-CN-BANK-01] [RB-CN-PSB-01]"
     elif any(w in msg for w in ["credit", "pboc", "history", "card"]):
         text = "📈 **Credit Path.** 6 steps from debit card to your first PBOC Credit Reference Report. Step 1: Open bank account. Step 4: Secured credit card after 3 months. No score predictions — only cited milestones. [RB-CN-CR-01]"
-    elif any(w in msg for w in ["fx", "rate", "exchange", "inr", "cny"]):
-        text = "💱 **FX & Routes.** Current mid-rate: 1 INR = 0.0860 CNY (illustrative). I can compare routes and build a transfer ladder to minimize regret across FX scenarios. I do not predict exchange rates. [RB-CN-FX-01]"
+    elif any(w in msg for w in ["fx", "rate", "exchange", "inr", "cny", "myr", "usd", "eur"]):
+        text = "💱 **FX & Routes.** Current mid-market rates loaded. I can compare international routes and build a transfer ladder to minimize regret across FX scenarios. I do not predict exchange rates. [RB-CN-FX-01]"
     elif any(w in msg for w in ["plan", "critical", "timeline", "deadline"]):
         text = "📋 **Critical Path Plan generated.** 8 milestones from arrival to your first PBOC report. PSB registration is time-critical (30 days). Tuition has 7 days slack. [RB-CN-PSB-01]"
     elif any(w in msg for w in ["safe", "limit", "50000", "report"]):
         text = "⚠️ **SAFE Reporting.** Inbound remittances above USD 50,000/year equivalent require SAFE reporting. I'll track your cumulative inbound and warn you before you cross the threshold. [RB-CN-SAFE-01]"
-    elif any(w in msg for w in ["hello", "hi", "start", "priya", "begin"]):
-        text = "👋 **Welcome to Landfall, Priya!** I've built your financial landing plan for Shenzhen. We've got 6 weeks before arrival. Your critical path has 8 milestones. PSB registration is the first critical task — it unlocks everything else. Shall we look at your tuition payment or set up your bank account first?"
+    elif any(w in msg for w in ["hello", "hi", "start", "priya", "begin", "hey"]):
+        text = f"👋 **Welcome to Landfall, {name}!** I've built your financial landing plan for Shenzhen. We've got 6 weeks before arrival. Your critical path has 8 milestones. PSB registration is the first critical task — it unlocks everything else. Shall we look at your tuition payment or set up your bank account first?"
     else:
         text = "🤖 **Landfall AI Agent** — I can help with: tuition payee verification, remittance route comparison, FX shock planning, bank account setup, document checklist, credit milestones, and scam detection. What would you like to explore?"
 

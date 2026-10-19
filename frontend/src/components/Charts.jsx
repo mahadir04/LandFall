@@ -3,7 +3,7 @@ import React, { useState } from 'react'
 /**
  * FXSplineChart: Interactive SVG Area/Spline Chart for INR/CNY exchange rate
  */
-export function FXSplineChart({ rates = [], scenario = 'baseline' }) {
+export function FXSplineChart({ rates = [], scenario = 'baseline', currencyCode = 'INR', currencySymbol = '₹' }) {
   const [hoverIndex, setHoverIndex] = useState(null)
   
   if (!rates || rates.length === 0) {
@@ -60,7 +60,7 @@ export function FXSplineChart({ rates = [], scenario = 'baseline' }) {
             Current Rate ({activePoint.date})
           </div>
           <div style={{ fontSize: 24, fontWeight: 800, color: strokeColor, fontFamily: 'JetBrains Mono, monospace' }}>
-            1 INR = {activePoint.rate.toFixed(4)} CNY
+            1 {currencyCode} = {activePoint.rate.toFixed(4)} CNY
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>
@@ -257,15 +257,18 @@ export function BudgetDonutChart({ totalCNY = 50000 }) {
 export function RouteComparisonChart({ quotes = [] }) {
   if (!quotes || quotes.length === 0) return null
 
-  const maxCost = Math.max(...quotes.map(q => q.total_cost_inr))
-  const minCost = Math.min(...quotes.map(q => q.total_cost_inr))
+  const getCost = q => (q.total_cost !== undefined ? q.total_cost : q.total_cost_inr)
+  const sym = quotes[0]?.currency_symbol || '₹'
+  const maxCost = Math.max(...quotes.map(getCost))
+  const minCost = Math.min(...quotes.map(getCost))
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {quotes.map((q, idx) => {
-        const pct = (q.total_cost_inr / maxCost) * 100
-        const isBest = q.total_cost_inr === minCost
-        const diff = q.total_cost_inr - minCost
+        const cost = getCost(q)
+        const pct = maxCost > 0 ? (cost / maxCost) * 100 : 100
+        const isBest = cost === minCost
+        const diff = cost - minCost
 
         return (
           <div key={idx} className={`provider-bar-card ${isBest ? 'best' : ''}`} style={{
@@ -282,12 +285,12 @@ export function RouteComparisonChart({ quotes = [] }) {
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 16, fontWeight: 800, color: isBest ? 'var(--green)' : 'var(--text-primary)' }}>
-                  ₹{q.total_cost_inr.toLocaleString()}
+                  {sym}{cost.toLocaleString()}
                 </div>
                 {isBest ? (
                   <span className="badge badge-green" style={{ fontSize: 9 }}>✓ LOWEST COST ROUTE</span>
                 ) : (
-                  <div style={{ fontSize: 10, color: 'var(--orange)' }}>+₹{Math.round(diff).toLocaleString()} higher</div>
+                  <div style={{ fontSize: 10, color: 'var(--orange)' }}>+{sym}{Math.round(diff).toLocaleString()} higher</div>
                 )}
               </div>
             </div>

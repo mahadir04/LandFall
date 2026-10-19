@@ -489,6 +489,43 @@ body {
 .notification-error { background: var(--red-dim); border: 1px solid rgba(244, 63, 94, 0.3); color: var(--red); }
 .notification-success { background: var(--green-dim); border: 1px solid rgba(16, 185, 129, 0.3); color: var(--green); }
 
+/* Modal overlay and card */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(3, 7, 18, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.modal-content {
+  width: 100%; max-width: 540px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-md);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6), 0 0 32px rgba(0, 242, 254, 0.15);
+  overflow: hidden;
+  animation: floatSoft 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+.modal-body {
+  padding: 24px;
+  max-height: 80vh;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.modal-footer {
+  display: flex; justify-content: flex-end; gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
 @media (max-width: 768px) {
   .sidebar { display: none; }
   .grid-2, .grid-3 { grid-template-columns: 1fr; }

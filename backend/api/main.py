@@ -47,8 +47,29 @@ def load_fx_series(scenario: str = "baseline"):
             rates.append({"date": row["date"], "rate": float(row["rate"])})
     return rates
 
+def load_currencies():
+    p = os.path.join(DATA_DIR, "currencies.json")
+    if os.path.exists(p):
+        with open(p, encoding="utf-8") as f:
+            return json.load(f)
+    return []
+
 # ── In-memory state (demo) ──────────────────────────────────────────────────
-_profile: dict = {}
+_profile: dict = {
+    "name": "Priya Sharma",
+    "home_country": "India",
+    "home_city": "Mumbai",
+    "home_currency": "INR",
+    "home_currency_symbol": "₹",
+    "host_currency": "CNY",
+    "host_country": "CN",
+    "host_city": "Shenzhen",
+    "host_university": "Shenzhen University",
+    "arrival_date": "2026-12-01",
+    "program_end": "2028-06-30",
+    "monthly_budget_cny": 50000,
+    "funding_source": "Family (INR)"
+}
 _audit_log: list = []
 _tokens: dict = {}
 _transactions: list = []
@@ -69,9 +90,15 @@ def _add_audit(actor: str, action: str, refs: list = []):
 
 # ── Pydantic schemas ─────────────────────────────────────────────────────────
 class ProfileIn(BaseModel):
+    name: Optional[str] = "Priya Sharma"
+    home_country: Optional[str] = "India"
+    home_city: Optional[str] = "Mumbai"
     home_currency: str = "INR"
+    home_currency_symbol: Optional[str] = "₹"
     host_currency: str = "CNY"
     host_country: str = "CN"
+    host_city: Optional[str] = "Shenzhen"
+    host_university: Optional[str] = "Shenzhen University"
     arrival_date: str
     program_end: str
     monthly_budget_cny: float
@@ -90,6 +117,7 @@ class ScamCheckIn(BaseModel):
 
 class QuoteIn(BaseModel):
     target_cny: float
+    home_currency: Optional[str] = None
 
 class FXScenarioIn(BaseModel):
     scenario: str = "baseline"
@@ -150,34 +178,70 @@ async def replan(body: dict):
         "changes": ["Discretionary bucket reduced by 8%", "Flexible tuition tranche deferred 3 days"],
     }
 
+@app.get("/currencies")
+async def get_currencies():
+    return load_currencies()
+
 # ── Quotes ────────────────────────────────────────────────────────────────────
 @app.post("/quotes")
 async def get_quotes(data: QuoteIn):
     providers = load_providers()
     fx_rates = load_fx_series("baseline")
-    m = fx_rates[-1]["rate"]  # latest rate
+    m_inr = fx_rates[-1]["rate"]  # latest INR baseline rate (0.0861)
+
+    curr_code = (data.home_currency or _profile.get("home_currency", "INR")).upper()
+    currencies = load_currencies()
+    curr_info = next((c for c in currencies if c["code"].upper() == curr_code), None)
+
+    if curr_info:
+        cur_mid_rate = curr_info["mid_rate_to_cny"]
+        cur_symbol = curr_info.get("symbol", curr_code)
+    else:
+        cur_mid_rate = m_inr
+        cur_symbol = "₹"
+
     quotes = []
     for p in providers:
-        eff_rate = m * (1 - p["fx_margin"])
-        home_cost = data.target_cny / eff_rate
-        total_cost = home_cost * (1 + p["pct_fee"]) + p["fixed_fee_inr"]
+        # Standard INR benchmark
+        eff_rate_inr = m_inr * (1 - p["fx_margin"])
+        home_cost_inr = data.target_cny / eff_rate_inr
+        total_cost_inr = home_cost_inr * (1 + p["pct_fee"]) + p["fixed_fee_inr"]
+
+        # Dynamic selected home currency
+        eff_rate_cur = cur_mid_rate * (1 - p["fx_margin"])
+        home_cost_cur = data.target_cny / eff_rate_cur
+        # Scale fixed fee to selected currency
+        fixed_fee_cur = round(p["fixed_fee_inr"] * (0.0861 / cur_mid_rate), 2) if cur_mid_rate > 0 else 0
+        total_cost_cur = home_cost_cur * (1 + p["pct_fee"]) + fixed_fee_cur
+
         quotes.append({
             "provider_id": p["id"],
             "provider_name": p["name"],
             "logo": p["logo"],
-            "mid_rate": round(m, 4),
-            "effective_rate": round(eff_rate, 4),
-            "home_cost_inr": round(home_cost, 2),
-            "total_cost_inr": round(total_cost, 2),
+            "currency_code": curr_code,
+            "currency_symbol": cur_symbol,
+            "mid_rate": round(cur_mid_rate, 4),
+            "effective_rate": round(eff_rate_cur, 4),
+            "home_cost": round(home_cost_cur, 2),
+            "total_cost": round(total_cost_cur, 2),
+            "fixed_fee": fixed_fee_cur,
+            "home_cost_inr": round(home_cost_inr, 2),
+            "total_cost_inr": round(total_cost_inr, 2),
             "fx_margin_pct": p["fx_margin"] * 100,
             "fee_pct": p["pct_fee"] * 100,
             "fixed_fee_inr": p["fixed_fee_inr"],
             "speed_days": p["speed_days"],
             "notes": p["notes"],
         })
-    quotes.sort(key=lambda x: x["total_cost_inr"])
-    _add_audit("agent", "quotes_generated", [str(data.target_cny)])
-    return {"quotes": quotes, "note": "Illustrative rates. Not live market data.", "generated_at": datetime.utcnow().isoformat()}
+    quotes.sort(key=lambda x: x["total_cost"])
+    _add_audit("agent", "quotes_generated", [str(data.target_cny), curr_code])
+    return {
+        "quotes": quotes,
+        "currency_code": curr_code,
+        "currency_symbol": cur_symbol,
+        "note": f"Illustrative rates in {curr_code}. Not live market data.",
+        "generated_at": datetime.utcnow().isoformat()
+    }
 
 # ── Payee Verification ────────────────────────────────────────────────────────
 @app.post("/payee/verify")
@@ -421,8 +485,12 @@ async def chat(data: ChatIn):
             "timestamp": datetime.utcnow().isoformat()
         }
 
-    # Generate response via Gemini 2.0 Flash (or deterministic fallback)
-    gemini_out = await generate_response(data.message, data.context)
+    # Inject student profile context
+    student_ctx = f"Student: {_profile.get('name', 'Priya')} from {_profile.get('home_city', 'Mumbai')}, {_profile.get('home_country', 'India')} (Currency: {_profile.get('home_currency', 'INR')} {_profile.get('home_currency_symbol', '₹')}). Destination: {_profile.get('host_university', 'Shenzhen University')} in {_profile.get('host_city', 'Shenzhen')}, China."
+    full_context = f"{student_ctx}\n{data.context}" if data.context else student_ctx
+
+    # Generate response via Gemini 3.8 Flash (or deterministic fallback)
+    gemini_out = await generate_response(data.message, full_context)
     response_text = gemini_out["text"]
     if "[RID:" not in response_text:
         response_text += f" [RID:{result_id}]"

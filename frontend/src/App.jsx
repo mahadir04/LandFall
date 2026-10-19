@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import './index.css'
 import { FXSplineChart, BudgetDonutChart, RouteComparisonChart, SAFEMeter, CreditProgressGauge } from './components/Charts'
+import { CURRENCIES, UNIVERSITIES } from './currencies'
 
 const API = 'http://localhost:8000'
 
@@ -27,14 +28,198 @@ const NAV = [
   { id: 'eval', icon: '📊', label: 'Eval Report' },
 ]
 
-// ── Onboarding Screen ────────────────────────────────────────────────────────
-function OnboardingScreen({ onComplete }) {
+// ── Profile & Currency Switcher Modal ─────────────────────────────────────────
+function ProfileModal({ profile, isOpen, onClose, onSave }) {
+  if (!isOpen) return null
+
+  const currentCur = CURRENCIES.find(c => c.code === (profile?.home_currency || 'INR')) || CURRENCIES[0]
   const [form, setForm] = useState({
-    home_currency: 'INR', host_currency: 'CNY', host_country: 'CN',
-    arrival_date: '2026-12-01', program_end: '2028-06-30',
-    monthly_budget_cny: 50000, funding_source: 'Family (INR)'
+    name: profile?.name || currentCur.defaultName,
+    home_country: profile?.home_country || currentCur.country,
+    home_city: profile?.home_city || currentCur.defaultCity,
+    home_currency: profile?.home_currency || currentCur.code,
+    home_currency_symbol: profile?.home_currency_symbol || currentCur.symbol,
+    host_currency: 'CNY',
+    host_country: 'CN',
+    host_city: 'Shenzhen',
+    host_university: profile?.host_university || UNIVERSITIES[0].name,
+    arrival_date: profile?.arrival_date || '2026-12-01',
+    program_end: profile?.program_end || '2028-06-30',
+    monthly_budget_cny: profile?.monthly_budget_cny || 50000,
+    funding_source: profile?.funding_source || currentCur.fundingOptions[0]
   })
   const [loading, setLoading] = useState(false)
+
+  const handleCountrySelect = (code) => {
+    const c = CURRENCIES.find(item => item.code === code) || CURRENCIES[0]
+    setForm(f => ({
+      ...f,
+      home_country: c.country,
+      home_city: c.defaultCity,
+      home_currency: c.code,
+      home_currency_symbol: c.symbol,
+      funding_source: c.fundingOptions[0]
+    }))
+  }
+
+  const handleSave = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      const res = await api.post('/profile', form)
+      onSave(res.profile)
+      onClose()
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const selectedCur = CURRENCIES.find(c => c.code === form.home_currency) || CURRENCIES[0]
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content fade-in" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 22 }}>🌍</span>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 16 }}>Select Origin & Currency</div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Personalize Landfall for international students worldwide</div>
+            </div>
+          </div>
+          <button className="btn btn-ghost btn-sm" onClick={onClose} style={{ fontSize: 16, padding: '4px 8px' }}>✕</button>
+        </div>
+
+        <form onSubmit={handleSave}>
+          <div className="modal-body">
+            <div className="input-group">
+              <label className="input-label">Home Country & Currency</label>
+              <select
+                className="select"
+                value={form.home_currency}
+                onChange={e => handleCountrySelect(e.target.value)}
+              >
+                {CURRENCIES.map(c => (
+                  <option key={c.code} value={c.code}>
+                    {c.flag} {c.country} — {c.code} ({c.symbol})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid-2">
+              <div className="input-group">
+                <label className="input-label">Student Name</label>
+                <input
+                  className="input"
+                  value={form.name}
+                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="e.g. Priya Sharma"
+                  required
+                />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Home City</label>
+                <input
+                  className="input"
+                  value={form.home_city}
+                  onChange={e => setForm(f => ({ ...f, home_city: e.target.value }))}
+                  placeholder="e.g. Mumbai, Kuala Lumpur"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="input-group">
+              <label className="input-label">Destination University (Shenzhen)</label>
+              <select
+                className="select"
+                value={form.host_university}
+                onChange={e => setForm(f => ({ ...f, host_university: e.target.value }))}
+              >
+                {UNIVERSITIES.map(u => (
+                  <option key={u.code} value={u.name}>
+                    🎓 {u.name} ({u.cn})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="input-group">
+              <label className="input-label">Funding Source</label>
+              <select
+                className="select"
+                value={form.funding_source}
+                onChange={e => setForm(f => ({ ...f, funding_source: e.target.value }))}
+              >
+                {selectedCur.fundingOptions.map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+                <option value="Self-Funded">Self-Funded</option>
+              </select>
+            </div>
+
+            <div className="input-group">
+              <label className="input-label">
+                Initial Budget (CNY)
+                <span style={{ color: 'var(--text-muted)', marginLeft: 8, fontSize: 11 }}>
+                  ≈ {selectedCur.symbol}{Math.round(form.monthly_budget_cny * selectedCur.cnyToCurrency).toLocaleString()} {selectedCur.code}
+                </span>
+              </label>
+              <input
+                className="input"
+                type="number"
+                value={form.monthly_budget_cny}
+                onChange={e => setForm(f => ({ ...f, monthly_budget_cny: Number(e.target.value) }))}
+              />
+            </div>
+          </div>
+
+          <div className="modal-footer">
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={loading}>
+              {loading ? 'Saving...' : '✓ Apply Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ── Onboarding Screen ────────────────────────────────────────────────────────
+function OnboardingScreen({ onComplete }) {
+  const [selectedCurrency, setSelectedCurrency] = useState(CURRENCIES[0])
+  const [form, setForm] = useState({
+    name: CURRENCIES[0].defaultName,
+    home_country: CURRENCIES[0].country,
+    home_city: CURRENCIES[0].defaultCity,
+    home_currency: CURRENCIES[0].code,
+    home_currency_symbol: CURRENCIES[0].symbol,
+    host_currency: 'CNY',
+    host_country: 'CN',
+    host_city: 'Shenzhen',
+    host_university: UNIVERSITIES[0].name,
+    arrival_date: '2026-12-01',
+    program_end: '2028-06-30',
+    monthly_budget_cny: 50000,
+    funding_source: CURRENCIES[0].fundingOptions[0]
+  })
+  const [loading, setLoading] = useState(false)
+
+  const handleCountrySelect = (code) => {
+    const c = CURRENCIES.find(item => item.code === code) || CURRENCIES[0]
+    setSelectedCurrency(c)
+    setForm(f => ({
+      ...f,
+      name: c.defaultName,
+      home_country: c.country,
+      home_city: c.defaultCity,
+      home_currency: c.code,
+      home_currency_symbol: c.symbol,
+      funding_source: c.fundingOptions[0]
+    }))
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -48,41 +233,96 @@ function OnboardingScreen({ onComplete }) {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse at top, #0d2035 0%, #0d1117 70%)' }}>
-      <div className="onboarding-container fade-in">
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse at top, #0d2035 0%, #0d1117 70%)', padding: '30px 16px' }}>
+      <div className="onboarding-container fade-in" style={{ maxWidth: 580 }}>
         <div className="onboarding-logo">
           <div className="onboarding-logo-icon">✈️</div>
           <div className="onboarding-title">Welcome to Landfall</div>
-          <div className="onboarding-sub">Let's build your landing plan</div>
+          <div className="onboarding-sub">Global Financial Landing Assistant for China</div>
         </div>
 
         <div className="notification notification-info">
           <span>ℹ️</span>
-          <span>Simulated environment · No real money moves · Powered by Landfall AI Agent</span>
+          <span>Simulated environment · No real money moves · Designed for students worldwide</span>
         </div>
 
         <form className="onboarding-card card" onSubmit={handleSubmit}>
-          <div className="card-title">Your Journey</div>
+          <div className="card-title">Select Origin & Destination</div>
+
+          <div className="input-group">
+            <label className="input-label">Home Country & Currency</label>
+            <select
+              className="select"
+              value={form.home_currency}
+              onChange={e => handleCountrySelect(e.target.value)}
+            >
+              {CURRENCIES.map(c => (
+                <option key={c.code} value={c.code}>
+                  {c.flag} {c.country} — {c.code} ({c.symbol}) · 1 CNY ≈ {c.cnyToCurrency} {c.code}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid-2">
+            <div className="input-group">
+              <label className="input-label">Student Name</label>
+              <input
+                className="input"
+                type="text"
+                value={form.name}
+                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="Full name"
+                required
+              />
+            </div>
+            <div className="input-group">
+              <label className="input-label">Home City</label>
+              <input
+                className="input"
+                type="text"
+                value={form.home_city}
+                onChange={e => setForm(f => ({ ...f, home_city: e.target.value }))}
+                placeholder="City of departure"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="input-group">
+            <label className="input-label">Target University (Shenzhen)</label>
+            <select
+              className="select"
+              value={form.host_university}
+              onChange={e => setForm(f => ({ ...f, host_university: e.target.value }))}
+            >
+              {UNIVERSITIES.map(u => (
+                <option key={u.code} value={u.name}>
+                  🎓 {u.name} ({u.cn})
+                </option>
+              ))}
+            </select>
+          </div>
 
           <div style={{ marginBottom: 16 }}>
-            <label className="input-label">Journey</label>
+            <label className="input-label">Journey Route</label>
             <div className="journey-row">
               <div className="journey-country">
-                <div className="journey-label">Home</div>
-                <div className="journey-value">India (INR)</div>
+                <div className="journey-label">Home Origin</div>
+                <div className="journey-value">{selectedCurrency.flag} {form.home_city}, {form.home_country} ({form.home_currency})</div>
               </div>
-              <div className="journey-arrow">→</div>
+              <div className="journey-arrow">✈️</div>
               <div className="journey-country">
-                <div className="journey-label">Host</div>
-                <div className="journey-value">China (CNY)</div>
+                <div className="journey-label">Destination</div>
+                <div className="journey-value">🇨🇳 Shenzhen, China (CNY)</div>
               </div>
             </div>
           </div>
 
-          <div className="card-title" style={{ marginTop: 16 }}>Arrival & Program</div>
+          <div className="card-title" style={{ marginTop: 16 }}>Arrival & Funding</div>
           <div className="grid-2">
             <div className="input-group">
-              <label className="input-label">Arriving</label>
+              <label className="input-label">Arrival Date</label>
               <input className="input" type="date" value={form.arrival_date}
                 onChange={e => setForm(f => ({ ...f, arrival_date: e.target.value }))} />
             </div>
@@ -93,25 +333,32 @@ function OnboardingScreen({ onComplete }) {
             </div>
           </div>
 
-          <div className="card-title">Funding & Budget</div>
-          <div className="input-group">
-            <label className="input-label">Main Funding Source</label>
-            <select className="select" value={form.funding_source}
-              onChange={e => setForm(f => ({ ...f, funding_source: e.target.value }))}>
-              <option>Family (INR)</option>
-              <option>Education Loan</option>
-              <option>Scholarship</option>
-            </select>
-          </div>
-          <div className="input-group">
-            <label className="input-label">Initial Budget (CNY)</label>
-            <input className="input" type="number" value={form.monthly_budget_cny}
-              onChange={e => setForm(f => ({ ...f, monthly_budget_cny: Number(e.target.value) }))} />
+          <div className="grid-2">
+            <div className="input-group">
+              <label className="input-label">Main Funding Rail</label>
+              <select className="select" value={form.funding_source}
+                onChange={e => setForm(f => ({ ...f, funding_source: e.target.value }))}>
+                {selectedCurrency.fundingOptions.map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+                <option value="Self-Funded">Self-Funded</option>
+              </select>
+            </div>
+            <div className="input-group">
+              <label className="input-label">
+                Initial Budget (CNY)
+                <span style={{ color: 'var(--text-muted)', marginLeft: 6, fontSize: 10 }}>
+                  ≈ {selectedCurrency.symbol}{Math.round(form.monthly_budget_cny * selectedCurrency.cnyToCurrency).toLocaleString()}
+                </span>
+              </label>
+              <input className="input" type="number" value={form.monthly_budget_cny}
+                onChange={e => setForm(f => ({ ...f, monthly_budget_cny: Number(e.target.value) }))} />
+            </div>
           </div>
 
           <button className="btn btn-primary btn-full" type="submit" disabled={loading}
-            style={{ marginTop: 8, padding: '14px 20px', fontSize: 16 }}>
-            {loading ? <span className="spinner">⚙️</span> : '⚡'} Generate My Plan
+            style={{ marginTop: 12, padding: '14px 20px', fontSize: 16 }}>
+            {loading ? <span className="spinner">⚙️</span> : '⚡'} Generate My Custom Landing Plan
           </button>
         </form>
       </div>
@@ -308,8 +555,8 @@ function PlanScreen() {
 }
 
 // ── Tuition & Payee ───────────────────────────────────────────────────────────
-function TuitionScreen() {
-  const [institution, setInstitution] = useState('Shenzhen University')
+function TuitionScreen({ profile }) {
+  const [institution, setInstitution] = useState(profile?.host_university || 'Shenzhen University')
   const [verifyResult, setVerifyResult] = useState(null)
   const [token, setToken] = useState(null)
   const [payResult, setPayResult] = useState(null)
@@ -435,27 +682,32 @@ function TuitionScreen() {
 }
 
 // ── Remittance Routes ─────────────────────────────────────────────────────────
-function RemittanceScreen() {
+function RemittanceScreen({ profile }) {
   const [amount, setAmount] = useState(28000)
   const [quotes, setQuotes] = useState([])
   const [loading, setLoading] = useState(false)
+  const homeCur = profile?.home_currency || 'INR'
+  const homeSym = profile?.home_currency_symbol || '₹'
 
   const compare = async (targetAmt = amount) => {
     setLoading(true)
-    const res = await api.post('/quotes', { target_cny: Number(targetAmt) })
+    const res = await api.post('/quotes', {
+      target_cny: Number(targetAmt),
+      home_currency: homeCur
+    })
     setQuotes(res.quotes || [])
     setLoading(false)
   }
 
   useEffect(() => {
-    compare(28000)
-  }, [])
+    compare(amount)
+  }, [profile?.home_currency])
 
   return (
     <div style={{ padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: 22 }}>
       <div className="notification notification-info">
         <span>💱</span>
-        <span>Routes compared by total landed cost (INR). Formula: total_cost = (target_cny / effective_rate) × (1 + fee%) + fixed_fee. [RB-CN-FX-01]</span>
+        <span>Routes compared by total landed cost ({homeCur}). Formula: total_cost = (target_cny / effective_rate) × (1 + fee%) + fixed_fee. [RB-CN-FX-01]</span>
       </div>
 
       <div className="card">
@@ -478,7 +730,7 @@ function RemittanceScreen() {
         <>
           {/* Graphical Insights: Route Cost Comparison Visualizer */}
           <div className="card fade-in">
-            <div className="card-title">Route Efficiency & Cost Breakdown</div>
+            <div className="card-title">Route Efficiency & Cost Breakdown ({homeCur})</div>
             <RouteComparisonChart quotes={quotes} />
           </div>
 
@@ -500,14 +752,14 @@ function RemittanceScreen() {
                       </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <div className="provider-cost">₹{q.total_cost_inr.toLocaleString('en-IN')}</div>
-                      <div className="provider-cost-label">Total Landed Cost (INR)</div>
+                      <div className="provider-cost">{q.currency_symbol || homeSym}{(q.total_cost !== undefined ? q.total_cost : q.total_cost_inr).toLocaleString()}</div>
+                      <div className="provider-cost-label">Total Landed Cost ({q.currency_code || homeCur})</div>
                     </div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, padding: '12px', background: 'var(--bg-secondary)', borderRadius: 8, fontSize: 12 }}>
                     <div><div style={{ color: 'var(--text-muted)' }}>FX Spread Margin</div><div style={{ fontWeight: 600 }}>{q.fx_margin_pct}%</div></div>
                     <div><div style={{ color: 'var(--text-muted)' }}>Platform Fee %</div><div style={{ fontWeight: 600 }}>{q.fee_pct}%</div></div>
-                    <div><div style={{ color: 'var(--text-muted)' }}>Fixed Fee</div><div style={{ fontWeight: 600 }}>₹{q.fixed_fee_inr}</div></div>
+                    <div><div style={{ color: 'var(--text-muted)' }}>Fixed Fee</div><div style={{ fontWeight: 600 }}>{q.currency_symbol || homeSym}{q.fixed_fee !== undefined ? q.fixed_fee : q.fixed_fee_inr}</div></div>
                     <div><div style={{ color: 'var(--text-muted)' }}>Settlement Speed</div><div style={{ fontWeight: 600, color: i === 0 ? 'var(--green)' : 'inherit' }}>{q.speed_days}</div></div>
                   </div>
                 </div>
@@ -612,7 +864,7 @@ function ScamScreen() {
 }
 
 // ── FX Scenario ────────────────────────────────────────────────────────────────
-function FXScreen() {
+function FXScreen({ profile }) {
   const [scenario, setScenario] = useState('baseline')
   const [data, setData] = useState(null)
   const [replan, setReplan] = useState(null)
@@ -668,7 +920,7 @@ function FXScreen() {
           {/* Graphical Insights: Interactive FX Spline Chart */}
           <div className="card fade-in">
             <div className="card-title">Interactive Spline Trend ({scenario.toUpperCase()})</div>
-            <FXSplineChart rates={data.rates} scenario={scenario} />
+            <FXSplineChart rates={data.rates} scenario={scenario} currencyCode={profile?.home_currency || 'INR'} currencySymbol={profile?.home_currency_symbol || '₹'} />
           </div>
 
           {replan && (
@@ -962,10 +1214,10 @@ function EvalScreen() {
 }
 
 // ── Chat Component ─────────────────────────────────────────────────────────────
-function ChatPanel() {
+function ChatPanel({ profile }) {
   const [collapsed, setCollapsed] = useState(false)
   const [msgs, setMsgs] = useState([
-    { role: 'ai', text: "Welcome Priya! I've built your financial landing plan for **Shenzhen**. We've got 6 weeks before arrival. Shall we look at the first critical task?" }
+    { role: 'ai', text: `Welcome ${profile?.name || 'Student'}! I've built your financial landing plan for **${profile?.host_university || 'Shenzhen'}**. We've got 6 weeks before arrival. Shall we look at the first critical task?` }
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -984,7 +1236,8 @@ function ChatPanel() {
     setMsgs(m => [...m, { role: 'user', text: userMsg }])
     setLoading(true)
     try {
-      const res = await api.post('/chat', { message: userMsg })
+      const studentCtx = `Student: ${profile?.name || 'Student'} from ${profile?.home_city || 'Origin'}, ${profile?.home_country || 'Home'} (${profile?.home_currency || 'INR'} ${profile?.home_currency_symbol || '₹'}). Destination: ${profile?.host_university || 'Shenzhen University'} in Shenzhen, China.`
+      const res = await api.post('/chat', { message: userMsg, context: studentCtx })
       setMsgs(m => [...m, { role: 'ai', text: res.response }])
     } catch {
       setMsgs(m => [...m, { role: 'ai', text: '⚠️ Connection error. Is the backend running?' }])
@@ -993,6 +1246,7 @@ function ChatPanel() {
   }
 
   const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }
+  const avatarLetter = (profile?.name || 'S')[0].toUpperCase()
 
   return (
     <div className="chat-section">
@@ -1013,7 +1267,7 @@ function ChatPanel() {
             {msgs.map((m, i) => (
               <div key={i} className={`chat-msg ${m.role === 'user' ? 'chat-msg-user' : ''} fade-in`}>
                 <div className={`chat-avatar ${m.role === 'ai' ? 'chat-avatar-ai' : 'chat-avatar-user'}`}>
-                  {m.role === 'ai' ? '🤖' : 'P'}
+                  {m.role === 'ai' ? '🤖' : avatarLetter}
                 </div>
                 <div className={`chat-bubble ${m.role === 'user' ? 'chat-bubble-user' : ''}`}
                   dangerouslySetInnerHTML={{ __html: m.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
@@ -1042,14 +1296,15 @@ function ChatPanel() {
 export default function App() {
   const [profile, setProfile] = useState(null)
   const [page, setPage] = useState('dashboard')
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
 
   const PAGES = {
     dashboard: <Dashboard profile={profile || {}} onNavigate={(p) => setPage(p)} />,
     plan: <PlanScreen />,
-    tuition: <TuitionScreen />,
-    remittance: <RemittanceScreen />,
+    tuition: <TuitionScreen profile={profile || {}} />,
+    remittance: <RemittanceScreen profile={profile || {}} />,
     scam: <ScamScreen />,
-    fx: <FXScreen />,
+    fx: <FXScreen profile={profile || {}} />,
     docs: <DocsScreen />,
     credit: <CreditScreen />,
     audit: <AuditScreen />,
@@ -1061,6 +1316,9 @@ export default function App() {
   if (!profile) {
     return <OnboardingScreen onComplete={(p) => setProfile(p)} />
   }
+
+  const curInfo = CURRENCIES.find(c => c.code === profile.home_currency) || CURRENCIES[0]
+  const avatarLetter = (profile.name || 'P')[0].toUpperCase()
 
   return (
     <div className="app-shell">
@@ -1087,13 +1345,18 @@ export default function App() {
 
         <div className="sidebar-profile">
           <div className="profile-badge">
-            <div className="profile-avatar">P</div>
+            <div className="profile-avatar">{avatarLetter}</div>
             <div style={{ flex: 1 }}>
-              <div className="profile-name">Priya</div>
-              <div className="profile-tier">✓ Tier 1 Verified</div>
+              <div className="profile-name">{profile.name || 'Student'}</div>
+              <div className="profile-tier">{curInfo.flag} {profile.home_currency || 'INR'} · Verified</div>
             </div>
-            <button className="btn btn-ghost btn-sm" style={{ padding: '2px 6px', fontSize: 11 }} onClick={() => setProfile(null)} title="Re-configure onboarding profile">
-              ✏️
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ padding: '4px 8px', fontSize: 13 }}
+              onClick={() => setIsProfileModalOpen(true)}
+              title="Change country, currency, or university"
+            >
+              ⚙️
             </button>
           </div>
         </div>
@@ -1104,16 +1367,43 @@ export default function App() {
         <div className="page-header">
           <div>
             <div className="page-title">{currentNav?.icon} {currentNav?.label}</div>
-            <div className="page-subtitle">India → China · INR/CNY · Shenzhen University</div>
+            <div className="page-subtitle">
+              {curInfo.flag} {profile.home_city || 'Origin'}, {profile.home_country || 'Home'} ({profile.home_currency || 'INR'} {profile.home_currency_symbol || curInfo.symbol}) ➔ 🇨🇳 Shenzhen, China ({profile.host_university || 'Shenzhen University'})
+            </div>
           </div>
-          <span className="simulated-badge">SIMULATED</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => setIsProfileModalOpen(true)}
+              style={{
+                borderRadius: 20, padding: '6px 14px', fontSize: 12,
+                display: 'flex', alignItems: 'center', gap: 6,
+                border: '1px solid var(--border-accent)',
+                background: 'var(--accent-dim)',
+                color: 'var(--text-primary)'
+              }}
+              title="Change home location, origin country, or currency"
+            >
+              <span>{curInfo.flag}</span>
+              <span style={{ fontWeight: 700 }}>{profile.home_currency} ({profile.home_currency_symbol || curInfo.symbol})</span>
+              <span style={{ fontSize: 10, color: 'var(--accent)' }}>▾ Switch Origin</span>
+            </button>
+            <span className="simulated-badge">SIMULATED</span>
+          </div>
         </div>
 
         <div style={{ flex: 1, overflow: 'auto' }}>
           {PAGES[page]}
         </div>
 
-        <ChatPanel />
+        <ChatPanel profile={profile} />
+
+        <ProfileModal
+          profile={profile}
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+          onSave={(p) => setProfile(p)}
+        />
       </div>
     </div>
   )
