@@ -34,6 +34,20 @@
       "name": "Lukas Weber",
       "password_hash": "09ba4d87a65c544c15a35b4a63cd50449a29011e4268606332ca1208a8168b51",
       "created_at": "2026-10-19T14:17:45.492916"
+    },
+    "ahmad_34dec7@student.my": {
+      "id": "usr_f6752dfc",
+      "email": "ahmad_34dec7@student.my",
+      "name": "Ahmad Faris",
+      "password_hash": "5d3f19b544d84f87352e1cbf6a428f8f4dcfe09b40aaf01bde1349f36e1ecea5",
+      "created_at": "2026-10-19T14:50:54.687932"
+    },
+    "lukas_ec9b66@berlin.de": {
+      "id": "usr_eee03071",
+      "email": "lukas_ec9b66@berlin.de",
+      "name": "Lukas Weber",
+      "password_hash": "09ba4d87a65c544c15a35b4a63cd50449a29011e4268606332ca1208a8168b51",
+      "created_at": "2026-10-19T14:50:54.695138"
     }
   },
   "profiles": {
@@ -51,7 +65,7 @@
       "program_end": "2028-06-30",
       "monthly_budget_cny": 50000.0,
       "funding_source": "Family (INR)",
-      "id": "f71a6a27-4e02-4acd-ae8a-02fe372ec6c5",
+      "id": "1999ab48-c4d8-4a31-9b8c-476fb61717ce",
       "user_email": "priya@szu.edu.cn"
     },
     "kenji@sustech.edu.cn": {
@@ -105,6 +119,40 @@
       "id": "ca56eb15-fac0-47ff-a4cc-5735192c91cd",
       "name": "Lukas Weber",
       "user_email": "lukas@berlin.de",
+      "home_country": "Germany",
+      "home_city": "Berlin",
+      "home_currency": "EUR",
+      "home_currency_symbol": "€",
+      "host_currency": "CNY",
+      "host_country": "CN",
+      "host_city": "Shenzhen",
+      "host_university": "Shenzhen University",
+      "arrival_date": "2026-12-01",
+      "program_end": "2028-06-30",
+      "monthly_budget_cny": 55000.0,
+      "funding_source": "Self-Funded"
+    },
+    "ahmad_34dec7@student.my": {
+      "id": "58dd3e36-eac1-4533-872f-ca1cde3abe65",
+      "name": "Ahmad Faris",
+      "user_email": "ahmad_34dec7@student.my",
+      "home_country": "Malaysia",
+      "home_city": "Kuala Lumpur",
+      "home_currency": "MYR",
+      "home_currency_symbol": "RM",
+      "host_currency": "CNY",
+      "host_country": "CN",
+      "host_city": "Shenzhen",
+      "host_university": "Southern University of Science and Technology (SUSTech)",
+      "arrival_date": "2026-11-20",
+      "program_end": "2028-06-30",
+      "monthly_budget_cny": 48000.0,
+      "funding_source": "Scholarship (MYR)"
+    },
+    "lukas_ec9b66@berlin.de": {
+      "id": "c7c03248-3978-4534-bd75-ba12d2de86a6",
+      "name": "Lukas Weber",
+      "user_email": "lukas_ec9b66@berlin.de",
       "home_country": "Germany",
       "home_city": "Berlin",
       "home_currency": "EUR",
@@ -674,6 +722,228 @@
       "home_currency": "EUR",
       "monthly_budget_cny": 55000.0,
       "generated_at": "2026-10-19T14:17:45.492916"
+    },
+    "ahmad_34dec7@student.my": {
+      "milestones": [
+        {
+          "id": "M1",
+          "name": "PSB Registration",
+          "duration_days": 2,
+          "depends_on": [],
+          "deadline_offset_days": 30,
+          "status": "done",
+          "slack_days": 28,
+          "rule_ref": "RB-CN-PSB-01",
+          "description": "Register at local Public Security Bureau within 30 days of arrival in Shenzhen."
+        },
+        {
+          "id": "M2",
+          "name": "Open Bank Account (ICBC)",
+          "duration_days": 3,
+          "depends_on": [
+            "M1"
+          ],
+          "deadline_offset_days": 33,
+          "status": "pending",
+          "slack_days": 25,
+          "rule_ref": "RB-CN-BANK-01",
+          "description": "Open RMB student account with passport, X-visa, PSB cert, and admission notice for Southern University of Science and Technology (SUSTech)."
+        },
+        {
+          "id": "M3",
+          "name": "Activate UnionPay Debit Card",
+          "duration_days": 1,
+          "depends_on": [
+            "M2"
+          ],
+          "deadline_offset_days": 34,
+          "status": "pending",
+          "slack_days": 24,
+          "rule_ref": "RB-CN-CR-02",
+          "description": "Activate UnionPay card for domestic payments and contactless POS in Shenzhen."
+        },
+        {
+          "id": "M4",
+          "name": "Tuition Payment (Southern University of Science and Technology (SUSTech))",
+          "duration_days": 5,
+          "depends_on": [
+            "M2"
+          ],
+          "deadline_offset_days": 45,
+          "status": "pending",
+          "slack_days": 7,
+          "rule_ref": "RB-CN-TUI-01",
+          "description": "Pay official tuition (CNY 28,000) via CNAPS direct to Southern University of Science and Technology (SUSTech) official account. Payee must be verified."
+        },
+        {
+          "id": "M5",
+          "name": "Rent Deposit",
+          "duration_days": 1,
+          "depends_on": [
+            "M3"
+          ],
+          "deadline_offset_days": 40,
+          "status": "pending",
+          "slack_days": 5,
+          "rule_ref": "RB-CN-BANK-02",
+          "description": "Transfer rent deposit via UnionPay debit card directly to landlord/dormitory."
+        },
+        {
+          "id": "M6",
+          "name": "Setup Alipay / WeChat Pay",
+          "duration_days": 1,
+          "depends_on": [
+            "M2"
+          ],
+          "deadline_offset_days": 50,
+          "status": "pending",
+          "slack_days": 15,
+          "rule_ref": "RB-CN-CR-03",
+          "description": "Link digital wallets to domestic account for campus dining and daily expenses in MYR equivalent."
+        },
+        {
+          "id": "M7",
+          "name": "Apply for Secured Credit Card",
+          "duration_days": 14,
+          "depends_on": [
+            "M2"
+          ],
+          "deadline_offset_days": 120,
+          "status": "pending",
+          "slack_days": 72,
+          "rule_ref": "RB-CN-CR-04",
+          "description": "Apply after 3-month account history with steady inbound remittances. No approval guaranteed."
+        },
+        {
+          "id": "M8",
+          "name": "First PBOC Credit Reference Report",
+          "duration_days": 1,
+          "depends_on": [
+            "M7"
+          ],
+          "deadline_offset_days": 300,
+          "status": "pending",
+          "slack_days": 150,
+          "rule_ref": "RB-CN-CR-06",
+          "description": "Request official PBOC credit report after 6 months of active UnionPay card usage."
+        }
+      ],
+      "user_name": "Ahmad Faris",
+      "university": "Southern University of Science and Technology (SUSTech)",
+      "home_currency": "MYR",
+      "monthly_budget_cny": 48000.0,
+      "generated_at": "2026-10-19T14:50:54.687932"
+    },
+    "lukas_ec9b66@berlin.de": {
+      "milestones": [
+        {
+          "id": "M1",
+          "name": "PSB Registration",
+          "duration_days": 2,
+          "depends_on": [],
+          "deadline_offset_days": 30,
+          "status": "pending",
+          "slack_days": 28,
+          "rule_ref": "RB-CN-PSB-01",
+          "description": "Register at local Public Security Bureau within 30 days of arrival in Shenzhen."
+        },
+        {
+          "id": "M2",
+          "name": "Open Bank Account (ICBC)",
+          "duration_days": 3,
+          "depends_on": [
+            "M1"
+          ],
+          "deadline_offset_days": 33,
+          "status": "pending",
+          "slack_days": 25,
+          "rule_ref": "RB-CN-BANK-01",
+          "description": "Open RMB student account with passport, X-visa, PSB cert, and admission notice for Shenzhen University."
+        },
+        {
+          "id": "M3",
+          "name": "Activate UnionPay Debit Card",
+          "duration_days": 1,
+          "depends_on": [
+            "M2"
+          ],
+          "deadline_offset_days": 34,
+          "status": "pending",
+          "slack_days": 24,
+          "rule_ref": "RB-CN-CR-02",
+          "description": "Activate UnionPay card for domestic payments and contactless POS in Shenzhen."
+        },
+        {
+          "id": "M4",
+          "name": "Tuition Payment (Shenzhen University)",
+          "duration_days": 5,
+          "depends_on": [
+            "M2"
+          ],
+          "deadline_offset_days": 45,
+          "status": "pending",
+          "slack_days": 7,
+          "rule_ref": "RB-CN-TUI-01",
+          "description": "Pay official tuition (CNY 28,000) via CNAPS direct to Shenzhen University official account. Payee must be verified."
+        },
+        {
+          "id": "M5",
+          "name": "Rent Deposit",
+          "duration_days": 1,
+          "depends_on": [
+            "M3"
+          ],
+          "deadline_offset_days": 40,
+          "status": "pending",
+          "slack_days": 5,
+          "rule_ref": "RB-CN-BANK-02",
+          "description": "Transfer rent deposit via UnionPay debit card directly to landlord/dormitory."
+        },
+        {
+          "id": "M6",
+          "name": "Setup Alipay / WeChat Pay",
+          "duration_days": 1,
+          "depends_on": [
+            "M2"
+          ],
+          "deadline_offset_days": 50,
+          "status": "pending",
+          "slack_days": 15,
+          "rule_ref": "RB-CN-CR-03",
+          "description": "Link digital wallets to domestic account for campus dining and daily expenses in EUR equivalent."
+        },
+        {
+          "id": "M7",
+          "name": "Apply for Secured Credit Card",
+          "duration_days": 14,
+          "depends_on": [
+            "M2"
+          ],
+          "deadline_offset_days": 120,
+          "status": "pending",
+          "slack_days": 72,
+          "rule_ref": "RB-CN-CR-04",
+          "description": "Apply after 3-month account history with steady inbound remittances. No approval guaranteed."
+        },
+        {
+          "id": "M8",
+          "name": "First PBOC Credit Reference Report",
+          "duration_days": 1,
+          "depends_on": [
+            "M7"
+          ],
+          "deadline_offset_days": 300,
+          "status": "pending",
+          "slack_days": 150,
+          "rule_ref": "RB-CN-CR-06",
+          "description": "Request official PBOC credit report after 6 months of active UnionPay card usage."
+        }
+      ],
+      "user_name": "Lukas Weber",
+      "university": "Shenzhen University",
+      "home_currency": "EUR",
+      "monthly_budget_cny": 55000.0,
+      "generated_at": "2026-10-19T14:50:54.695138"
     }
   }
 }

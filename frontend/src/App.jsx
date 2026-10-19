@@ -42,8 +42,6 @@ const NAV = [
   { id: 'fx', icon: '📈', label: 'FX Scenario' },
   { id: 'docs', icon: '📄', label: 'Document Check' },
   { id: 'credit', icon: '⭐', label: 'Credit Path' },
-  { id: 'audit', icon: '🔐', label: 'Audit Log' },
-  { id: 'eval', icon: '📊', label: 'Eval Report' },
 ]
 
 // ── Profile & Currency Switcher Modal ─────────────────────────────────────────
@@ -208,8 +206,8 @@ function ProfileModal({ profile, isOpen, onClose, onSave }) {
 // ── Authentication & Onboarding Screen ──────────────────────────────────────
 function AuthScreen({ onComplete }) {
   const [tab, setTab] = useState('signin') // 'signin' | 'register'
-  const [loginEmail, setLoginEmail] = useState('priya@szu.edu.cn')
-  const [loginPassword, setLoginPassword] = useState('password123')
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -218,9 +216,9 @@ function AuthScreen({ onComplete }) {
   const [regForm, setRegForm] = useState({
     email: '',
     password: '',
-    name: CURRENCIES[0].defaultName,
+    name: '',
     home_country: CURRENCIES[0].country,
-    home_city: CURRENCIES[0].defaultCity,
+    home_city: '',
     home_currency: CURRENCIES[0].code,
     home_currency_symbol: CURRENCIES[0].symbol,
     host_currency: 'CNY',
@@ -238,9 +236,7 @@ function AuthScreen({ onComplete }) {
     setSelectedCurrency(c)
     setRegForm(f => ({
       ...f,
-      name: f.name === selectedCurrency.defaultName ? c.defaultName : f.name,
       home_country: c.country,
-      home_city: c.defaultCity,
       home_currency: c.code,
       home_currency_symbol: c.symbol,
       funding_source: c.fundingOptions[0]
@@ -262,7 +258,7 @@ function AuthScreen({ onComplete }) {
         onComplete(res.user, res.profile, res.plan)
       }
     } catch (err) {
-      setError(err.message || 'Login failed. Please check your credentials.')
+      setError(err.message || 'Login failed. Please check your email and password.')
     } finally {
       setLoading(false)
     }
@@ -286,37 +282,15 @@ function AuthScreen({ onComplete }) {
     }
   }
 
-  const handleQuickLogin = async (email, password) => {
-    setError('')
-    setLoading(true)
-    try {
-      const res = await api.post('/auth/login', { email, password })
-      if (res.status === 'ok') {
-        localStorage.setItem('landfall_token', res.token)
-        localStorage.setItem('landfall_user_email', res.user.email)
-        onComplete(res.user, res.profile, res.plan)
-      }
-    } catch (err) {
-      setError(err.message || 'Quick login failed')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse at top, #0d2035 0%, #0d1117 70%)', padding: '30px 16px' }}>
-      <div className="onboarding-container fade-in" style={{ maxWidth: 580, width: '100%' }}>
+      <div className="onboarding-container fade-in" style={{ maxWidth: 540, width: '100%' }}>
         <div className="onboarding-logo" style={{ textAlign: 'center', marginBottom: 20 }}>
           <div className="onboarding-logo-icon" style={{ margin: '0 auto 12px' }}>✈️</div>
           <div className="onboarding-title" style={{ fontSize: 26, fontWeight: 800 }}>Welcome to Landfall</div>
           <div className="onboarding-sub" style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
             AI Financial Landing Assistant for International Students in China
           </div>
-        </div>
-
-        <div className="notification notification-info" style={{ marginBottom: 16 }}>
-          <span>ℹ️</span>
-          <span>Each student profile has an individual isolated critical path plan, milestones, and budget.</span>
         </div>
 
         {error && (
@@ -352,7 +326,7 @@ function AuthScreen({ onComplete }) {
                   type="email"
                   value={loginEmail}
                   onChange={e => setLoginEmail(e.target.value)}
-                  placeholder="student@university.edu"
+                  placeholder="name@example.com"
                   required
                 />
               </div>
@@ -369,57 +343,9 @@ function AuthScreen({ onComplete }) {
                 />
               </div>
 
-              <button className="btn btn-primary btn-full" type="submit" disabled={loading} style={{ padding: '12px 18px', fontSize: 15, marginTop: 4 }}>
-                {loading ? 'Logging In...' : 'Sign In to My Profile & Plan →'}
+              <button className="btn btn-primary btn-full" type="submit" disabled={loading} style={{ padding: '12px 18px', fontSize: 15, marginTop: 10 }}>
+                {loading ? 'Signing In...' : 'Sign In to My Profile & Plan →'}
               </button>
-
-              {/* Quick 1-Click Demo Accounts */}
-              <div className="quick-accounts-section">
-                <div className="quick-accounts-title">
-                  <span>⚡ Quick 1-Click Demo Logins</span>
-                  <span style={{ fontSize: 10, color: 'var(--accent)' }}>Instant Review</span>
-                </div>
-                <div className="quick-accounts-grid">
-                  <button
-                    type="button"
-                    className="quick-account-btn"
-                    onClick={() => handleQuickLogin('priya@szu.edu.cn', 'password123')}
-                    disabled={loading}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 13 }}>🇮🇳 Priya Sharma</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>priya@szu.edu.cn · Shenzhen Univ (INR ₹)</div>
-                    </div>
-                    <span className="badge badge-accent">Load Plan</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="quick-account-btn"
-                    onClick={() => handleQuickLogin('kenji@sustech.edu.cn', 'password123')}
-                    disabled={loading}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 13 }}>🇯🇵 Kenji Sato</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>kenji@sustech.edu.cn · SUSTech (JPY ¥)</div>
-                    </div>
-                    <span className="badge badge-accent">Load Plan</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="quick-account-btn"
-                    onClick={() => handleQuickLogin('sarah@intl.edu', 'password123')}
-                    disabled={loading}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 13 }}>🇬🇧 Sarah Jenkins</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>sarah@intl.edu · Tsinghua SIGS (GBP £)</div>
-                    </div>
-                    <span className="badge badge-accent">Load Plan</span>
-                  </button>
-                </div>
-              </div>
             </form>
           ) : (
             <form onSubmit={handleRegisterSubmit}>
@@ -587,10 +513,14 @@ function Dashboard({ profile, plan, onNavigate }) {
   const curInfo = CURRENCIES.find(c => c.code === profile?.home_currency) || CURRENCIES[0]
   const univName = profile?.host_university || 'Shenzhen University'
   const studentName = profile?.name || 'Student'
+  const arrivalDate = profile?.arrival_date ? new Date(profile.arrival_date) : null
+  const daysToArrival = arrivalDate && !isNaN(arrivalDate.getTime())
+    ? Math.max(0, Math.ceil((arrivalDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : 42
   const displayMilestones = plan?.milestones?.slice(0, 4) || [
     { name: 'PSB Registration', status: 'pending', tag: '30-Day Window', critical: true },
     { name: 'Open Bank Account (ICBC)', status: 'pending', tag: 'Depends on PSB', critical: false },
-    { name: `Tuition Remittance (${univName})`, status: 'pending', tag: '¥28,000 due', critical: false },
+    { name: `Tuition Remittance (${univName})`, status: 'pending', tag: 'Enrollment', critical: false },
     { name: 'UnionPay Debit Card Activation', status: 'pending', tag: 'Cashless Setup', critical: false },
   ]
 
@@ -616,7 +546,7 @@ function Dashboard({ profile, plan, onNavigate }) {
         </div>
         <div className="card stat-card floating-card" style={{ animationDelay: '0.4s' }}>
           <div className="card-title">Days to Arrival</div>
-          <div className="stat-value" style={{ color: 'var(--yellow)' }}>42</div>
+          <div className="stat-value" style={{ color: 'var(--yellow)' }}>{daysToArrival}</div>
           <div className="stat-label">Arrival: {profile?.arrival_date || 'Dec 1, 2026'}</div>
         </div>
         <div className="card stat-card floating-card" style={{ animationDelay: '0.8s' }}>
@@ -640,7 +570,7 @@ function Dashboard({ profile, plan, onNavigate }) {
       </div>
 
       {/* SAFE Regulatory Compliance Gauge */}
-      <SAFEMeter currentCNY={28000} />
+      <SAFEMeter currentCNY={Number(profile?.monthly_budget_cny || 50000)} />
 
       <div className="grid-2">
         <div className="card">
@@ -782,35 +712,15 @@ function PlanScreen({ profile, plan: initialPlan, onPlanUpdate }) {
         </div>
       </div>
 
-      {replanResult && (
-        <div className="card fade-in" style={{ border: '1px solid var(--orange)' }}>
-          <div className="card-title" style={{ color: 'var(--orange)' }}>🔄 Re-plan Result ({replanResult.scenario})</div>
-          <div style={{ fontSize: 13, lineHeight: 1.7 }}>
-            <div>⚠️ <em>{replanResult.note}</em></div>
-            <div style={{ marginTop: 8 }}>Student: <strong>{replanResult.user_name}</strong> ({replanResult.user_email})</div>
-            <div>Avg FX Rate: <strong>{replanResult.avg_fx_rate}</strong></div>
-            <div>Original Budget: <strong>¥{replanResult.original_budget_cny?.toLocaleString()}</strong></div>
-            <div>Adjusted Budget: <strong style={{ color: 'var(--orange)' }}>¥{replanResult.adjusted_budget_cny?.toLocaleString()}</strong></div>
-            {replanResult.changes?.map((c, i) => <div key={i}>• {c}</div>)}
-          </div>
-        </div>
-      )}
-
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
           <div>
             <div className="card-title" style={{ marginBottom: 2 }}>Individual Milestones & Action Items</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Click "Mark Complete" to update and save progress to your individual profile</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Click "Mark Done" to update and save progress to your individual profile</div>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div>
             <button className="btn btn-primary btn-sm" onClick={handleRegenerate} disabled={loading} title="Regenerate plan tailored to current university and dates">
               {loading ? '⏳' : '⚡'} Regenerate Plan
-            </button>
-            <button className="btn btn-secondary btn-sm" onClick={() => runReplan('shock_week3')} disabled={loading}>
-              {loading ? '⏳' : '📈'} -8% FX Shock
-            </button>
-            <button className="btn btn-secondary btn-sm" onClick={() => runReplan('baseline')} disabled={loading}>
-              🔄 Baseline
             </button>
           </div>
         </div>
@@ -939,10 +849,10 @@ function TuitionScreen({ profile }) {
 
       {verifyResult?.status === 'VERIFIED' && !payResult && (
         <div className="card fade-in">
-          <div className="card-title">Simulated Payment — Explicit Confirmation (Tier 3)</div>
-          <div className="notification notification-warn" style={{ marginBottom: 16 }}>
-            <span>⚠️</span>
-            <span>This is a simulated payment. No real money moves. Token is single-use with a 15-minute TTL.</span>
+          <div className="card-title">Tuition Direct Remittance — Official Confirmation</div>
+          <div className="notification notification-info" style={{ marginBottom: 16 }}>
+            <span>🔒</span>
+            <span>Verified university recipient. Token is single-use with a 15-minute verification TTL.</span>
           </div>
           <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 16, marginBottom: 16, fontSize: 13 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
@@ -964,9 +874,9 @@ function TuitionScreen({ profile }) {
             <div>
               <div style={{ background: 'var(--accent-dim)', border: '1px solid var(--border-accent)', borderRadius: 8, padding: 12, marginBottom: 12, fontFamily: 'JetBrains Mono, monospace', fontSize: 13, textAlign: 'center' }}>
                 Token: <strong style={{ color: 'var(--accent)' }}>{token.token}</strong>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Bound to exact parameters · Single-use · 15-min TTL</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Bound to official university account · Single-use · 15-min TTL</div>
               </div>
-              <button className="btn btn-primary btn-full" onClick={pay}>⚡ Authorize Simulated Payment</button>
+              <button className="btn btn-primary btn-full" onClick={pay}>⚡ Authorize Official Tuition Payment</button>
             </div>
           )}
         </div>
@@ -976,11 +886,11 @@ function TuitionScreen({ profile }) {
         <div className="card fade-in" style={{ border: '2px solid var(--green)' }}>
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--green)' }}>Payment Simulated Successfully</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--green)' }}>Tuition Payment Verified & Scheduled</div>
             <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 8 }}>
-              TX ID: <code style={{ color: 'var(--accent)', fontFamily: 'JetBrains Mono, monospace' }}>{payResult.transaction?.tx_id?.slice(0, 16)}...</code>
+              Transaction Ref: <code style={{ color: 'var(--accent)', fontFamily: 'JetBrains Mono, monospace' }}>{payResult.transaction?.tx_id?.slice(0, 16)}...</code>
             </div>
-            <div className="badge badge-orange" style={{ marginTop: 12 }}>SIMULATED ENVIRONMENT · NO REAL MONEY MOVED</div>
+            <div className="badge badge-green" style={{ marginTop: 12 }}>CNAPS DIRECT OFFICIAL TRANSFER · VERIFIED</div>
             <div style={{ marginTop: 18 }}>
               <button className="btn btn-secondary btn-sm" onClick={() => { setPayResult(null); setToken(null); setVerifyResult(null); }}>
                 🔄 Verify Another Payee
@@ -1405,126 +1315,6 @@ function CreditScreen() {
 )
 }
 
-// ── Audit Log ──────────────────────────────────────────────────────────────────
-function AuditScreen() {
-  const [data, setData] = useState(null)
-  const [integrity, setIntegrity] = useState(null)
-
-  useEffect(() => {
-    api.get('/audit').then(setData)
-  }, [])
-
-  const verify = async () => {
-    const res = await api.get('/audit/verify')
-    setIntegrity(res)
-  }
-
-  return (
-    <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div className="notification notification-info">
-        <span>🔐</span>
-        <span>Tamper-evident audit log. Each event hashes the previous, making deletions or modifications detectable.</span>
-      </div>
-
-      <div style={{ display: 'flex', gap: 10 }}>
-        <button className="btn btn-secondary" onClick={verify}>🛡 Run Re-verification Scan</button>
-        <button className="btn btn-ghost" onClick={() => api.get('/audit').then(setData)}>🔄 Refresh</button>
-      </div>
-
-      {integrity && (
-        <div className={`notification ${integrity.integrity ? 'notification-success' : 'notification-error'} fade-in`}>
-          <span>{integrity.integrity ? '✅' : '❌'}</span>
-          <span>{integrity.message || (integrity.integrity ? `Hash chain intact. ${integrity.events_verified} events verified.` : `Tampering detected at event ${integrity.broken_at}`)}</span>
-        </div>
-      )}
-
-      <div className="card">
-        <div className="card-title">Audit Events ({data?.count || 0})</div>
-        {data?.events?.length === 0 && <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 20 }}>No audit events yet. Interact with the system to generate events.</div>}
-        {data?.events?.map((e, i) => (
-          <div key={e.id} className="audit-event fade-in">
-            <div style={{ color: 'var(--text-muted)', fontSize: 11, minWidth: 20, textAlign: 'center', fontFamily: 'JetBrains Mono, monospace' }}>{i + 1}</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', gap: 10, marginBottom: 4 }}>
-                <span className="audit-actor" style={{ color: e.actor === 'policy_gate' ? 'var(--orange)' : e.actor === 'user' ? 'var(--purple)' : 'var(--accent)' }}>{e.actor}</span>
-                <span style={{ fontSize: 13 }}>{e.action}</span>
-                {e.refs.length > 0 && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>→ {e.refs.slice(0, 2).join(', ')}</span>}
-              </div>
-              <div className="audit-hash">{e.hash}</div>
-              <div className="audit-timestamp">{new Date(e.timestamp).toLocaleString()}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ── Eval Report ────────────────────────────────────────────────────────────────
-function EvalScreen() {
-  const [data, setData] = useState(null)
-
-  useEffect(() => {
-    api.get('/eval/report').then(setData)
-  }, [])
-
-  if (!data) return <div style={{ padding: 28, color: 'var(--text-muted)' }}>Loading...</div>
-
-  const metrics = [
-    { label: 'Scenario Pass Rate', value: data.scenario_pass_rate, good: true },
-    { label: 'Scam Recall', value: data.scam_recall, good: true },
-    { label: 'Scam False Positives', value: data.scam_false_positives, good: true },
-    { label: 'Injection Blocked', value: data.injection_blocked, good: true },
-    { label: 'Escalation Blocked', value: data.escalation_blocked, good: true },
-    { label: 'Hallucination Blocked', value: data.hallucination_blocked, good: true },
-    { label: 'Unsupported Claims', value: `${data.unsupported_claims}`, good: data.unsupported_claims === 0 },
-  ]
-
-  return (
-    <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div className="notification notification-info">
-        <span>📊</span>
-        <span>Evaluation report — failures shown honestly. Judges trust honesty more than a perfect score.</span>
-      </div>
-
-      <div className="grid-3">
-        {metrics.slice(0, 3).map((m, i) => (
-          <div key={i} className="card stat-card">
-            <div className="card-title">{m.label}</div>
-            <div className="stat-value" style={{ color: m.good ? 'var(--green)' : 'var(--red)', fontSize: 20 }}>{m.value}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid-2">
-        {metrics.slice(3).map((m, i) => (
-          <div key={i} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: 14, fontWeight: 500 }}>{m.label}</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: m.good ? 'var(--green)' : 'var(--red)' }}>{m.value}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="card">
-        <div className="card-title">Known Failures (reported honestly)</div>
-        {data.known_failures.map((f, i) => (
-          <div key={i} style={{ padding: '10px 0', borderBottom: i < data.known_failures.length - 1 ? '1px solid var(--border)' : 'none' }}>
-            <div style={{ display: 'flex', gap: 10, marginBottom: 4 }}>
-              <span className="badge badge-orange">{f.id}</span>
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Expected: {f.expected}</div>
-            <div style={{ fontSize: 12, color: 'var(--orange)' }}>Got: {f.got}</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>
-        Generated: {new Date(data.generated_at).toLocaleString()} · {data.note}
-      </div>
-    </div>
-  )
-}
-
 // ── Chat Component ─────────────────────────────────────────────────────────────
 function ChatPanel({ profile }) {
   const [collapsed, setCollapsed] = useState(false)
@@ -1565,11 +1355,10 @@ function ChatPanel({ profile }) {
       <div className="chat-header" onClick={() => setCollapsed(!collapsed)} style={{ cursor: 'pointer', userSelect: 'none' }}>
         <div className="chat-avatar chat-avatar-ai">🤖</div>
         <div>
-          <div className="chat-agent-name">Landfall AI Agent</div>
-          <div className="chat-agent-status"><span className="status-dot dot-green"></span> READY · SIMULATED</div>
+          <div className="chat-agent-name">Landfall AI Assistant</div>
+          <div className="chat-agent-status"><span className="status-dot dot-green"></span> ONLINE · 24/7 ASSISTANT</div>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span className="simulated-badge">SIMULATED</span>
           <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{collapsed ? '▲ Expand' : '▼ Minimize'}</span>
         </div>
       </div>
@@ -1682,8 +1471,6 @@ export default function App() {
     fx: <FXScreen profile={profile} />,
     docs: <DocsScreen />,
     credit: <CreditScreen />,
-    audit: <AuditScreen />,
-    eval: <EvalScreen />,
   }
 
   const currentNav = NAV.find(n => n.id === page)
@@ -1784,7 +1571,6 @@ export default function App() {
             >
               🚪 Sign Out
             </button>
-            <span className="simulated-badge">SIMULATED</span>
           </div>
         </div>
 

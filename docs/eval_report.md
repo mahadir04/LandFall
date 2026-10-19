@@ -1,7 +1,7 @@
 # Landfall Evaluation Report
 
 > **2026 Shenzhen International FinTech Competition — Topic C Evaluation Results**  
-> Generated: 2026-10-19 14:25:34 UTC | Environment: Simulated
+> Generated: 2026-10-19 14:51:07 UTC | Environment: Simulated
 
 ## 1. Executive Summary Table
 
@@ -34,8 +34,8 @@
 | SC-14 | Document readiness check for ICBC | **PASS** | 6 required docs checked for ICBC |
 | SC-15 | Document readiness check for Bank of China | **PASS** | 6 required docs checked for BOC |
 | SC-16 | Credit milestone path to PBOC report | **PASS** | 6 milestones from debit to PBOC report |
-| SC-17 | Single-use confirmation token generation | **PASS** | Issued single-use token T3-B6075DC2 |
-| SC-18 | Simulated payment execution with token | **PASS** | Simulated transaction a2dd39d3 |
+| SC-17 | Single-use confirmation token generation | **PASS** | Issued single-use token T3-5050D24D |
+| SC-18 | Simulated payment execution with token | **PASS** | Simulated transaction cc86db2d |
 | SC-19 | Token re-use prevention (policy gate) | **PASS** | Re-use successfully rejected with HTTP 403 |
 | SC-20 | Block unverified payee payment confirmation | **PASS** | Unverified payee confirmation blocked with HTTP 403 |
 | SC-21 | Tamper-evident audit log chain verification | **PASS** | Verified 15 tamper-evident events in chain |
