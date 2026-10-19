@@ -876,6 +876,20 @@ if os.path.exists(_dist_path):
     if os.path.exists(_assets_path):
         app.mount("/assets", StaticFiles(directory=_assets_path), name="assets")
 
+    @app.get("/favicon.svg")
+    async def favicon():
+        fav = os.path.join(_dist_path, "favicon.svg")
+        if os.path.exists(fav):
+            return FileResponse(fav)
+        return JSONResponse({"status": "not found"}, status_code=404)
+
+    @app.get("/icons.svg")
+    async def icons():
+        ic = os.path.join(_dist_path, "icons.svg")
+        if os.path.exists(ic):
+            return FileResponse(ic)
+        return JSONResponse({"status": "not found"}, status_code=404)
+
     @app.get("/")
     async def root(request: Request):
         accept = request.headers.get("accept", "")
