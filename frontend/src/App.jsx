@@ -530,8 +530,8 @@ function Dashboard({ profile, plan, onNavigate }) {
   })
 
   return (
-    <div style={{ padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: 22 }}>
-      <div className="notification notification-info fade-in" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div className="page-container fade-in">
+      <div className="notification notification-info" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontSize: 20 }}>✈️</span>
           <span>
@@ -697,9 +697,9 @@ function PlanScreen({ profile, plan: initialPlan, onPlanUpdate }) {
   const pct = Math.round((completedCount / (totalCount || 1)) * 100)
 
   return (
-    <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="page-container fade-in">
       {/* Individual Plan Progress Card */}
-      <div className="plan-progress-card fade-in">
+      <div className="plan-progress-card">
         <div className="plan-progress-header">
           <div>
             <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -819,7 +819,7 @@ function TuitionScreen({ profile }) {
   const statusIcons = { VERIFIED: '✅', MISMATCH: '❌', UNVERIFIED: '⚠️' }
 
   return (
-    <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="page-container fade-in">
       <div className="notification notification-info">
         <span>🎓</span>
         <span>Tuition payments must go to the university's official CNAPS account. Third-party agents are prohibited. [RB-CN-TUI-01]</span>
@@ -940,7 +940,7 @@ function RemittanceScreen({ profile }) {
   }, [profile?.home_currency])
 
   return (
-    <div style={{ padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: 22 }}>
+    <div className="page-container fade-in">
       <div className="notification notification-info">
         <span>💱</span>
         <span>Routes compared by total landed cost ({homeCur}). Formula: total_cost = (target_cny / effective_rate) × (1 + fee%) + fixed_fee. [RB-CN-FX-01]</span>
@@ -948,8 +948,8 @@ function RemittanceScreen({ profile }) {
 
       <div className="card">
         <div className="card-title">Target Remittance Amount</div>
-        <div style={{ display: 'flex', gap: 12 }}>
-          <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 200px' }}>
             <label className="input-label">Amount to Send (CNY)</label>
             <input className="input" type="number" value={amount}
               onChange={e => setAmount(e.target.value)} />
@@ -979,7 +979,7 @@ function RemittanceScreen({ profile }) {
               {quotes.map((q, i) => (
                 <div key={q.provider_id} className={`provider-card fade-in ${i === 0 ? 'best' : ''}`}>
                   {i === 0 && <div className="best-tag">✓ CHEAPEST ROUTE</div>}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <span className="provider-logo">{q.logo}</span>
                       <div>
@@ -992,7 +992,7 @@ function RemittanceScreen({ profile }) {
                       <div className="provider-cost-label">Total Landed Cost ({q.currency_code || homeCur})</div>
                     </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, padding: '12px', background: 'var(--bg-secondary)', borderRadius: 8, fontSize: 12 }}>
+                  <div className="provider-stats-grid">
                     <div><div style={{ color: 'var(--text-muted)' }}>FX Spread Margin</div><div style={{ fontWeight: 600 }}>{q.fx_margin_pct}%</div></div>
                     <div><div style={{ color: 'var(--text-muted)' }}>Platform Fee %</div><div style={{ fontWeight: 600 }}>{q.fee_pct}%</div></div>
                     <div><div style={{ color: 'var(--text-muted)' }}>Fixed Fee</div><div style={{ fontWeight: 600 }}>{q.currency_symbol || homeSym}{q.fixed_fee !== undefined ? q.fixed_fee : q.fixed_fee_inr}</div></div>
@@ -1034,7 +1034,7 @@ function ScamScreen() {
   const decisionClass = { BLOCK: 'scam-block', WARN: 'scam-warn', ALLOW: 'scam-allow' }
 
   return (
-    <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="page-container fade-in">
       <div className="notification notification-error" style={{ background: '#fef2f2', border: '1.5px solid #fca5a5', color: '#991b1b' }}>
         <span>🛡</span>
         <span><strong>High-Risk Scam Defense:</strong> Scam Shield uses strict rule-based signal scoring against phishing, tuition redirection, and discount fraud. [RB-CN-SCAM-01]</span>
@@ -1133,7 +1133,7 @@ function FXScreen({ profile }) {
   }
 
   return (
-    <div style={{ padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: 22 }}>
+    <div className="page-container fade-in">
       <div className="notification notification-warn">
         <span>📈</span>
         <span>This is a scenario replay. We do not predict exchange rates. [RB-CN-FX-01]</span>
@@ -1210,13 +1210,13 @@ function DocsScreen() {
   const statusBadge = { ok: 'badge-green', pending: 'badge-orange', missing: 'badge-red', info: 'badge-accent' }
 
   return (
-    <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="page-container fade-in">
       <div className="notification notification-info">
         <span>📄</span>
         <span>Document requirements per bank. PSB Certificate is pending until arrival — this is expected, not a failure. [RB-CN-BANK-01]</span>
       </div>
 
-      <div className="tabs">
+      <div className="tabs" style={{ overflowX: 'auto', flexWrap: 'nowrap' }}>
         {['ICBC', 'BOC', 'CMB'].map(b => (
           <div key={b} className={`tab ${selectedBank === b ? 'active' : ''}`} onClick={() => setSelectedBank(b)}>
             {b}
@@ -1227,30 +1227,32 @@ function DocsScreen() {
       {data && data.banks[selectedBank] && (
         <div className="card fade-in">
           <div className="card-title">{selectedBank} — Document Readiness</div>
-          <table className="doc-table">
-            <thead>
-              <tr>
-                <th>Document</th>
-                <th>Status</th>
-                <th>Note</th>
-                <th>Rule</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.banks[selectedBank].requirements.map((doc, i) => (
-                <tr key={i}>
-                  <td style={{ fontWeight: 500 }}>{doc.doc}</td>
-                  <td>
-                    <span className={`badge ${statusBadge[doc.status]}`}>
-                      {statusIcon[doc.status]} {doc.status.toUpperCase()}
-                    </span>
-                  </td>
-                  <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{doc.note}</td>
-                  <td><code style={{ fontSize: 10, color: 'var(--accent)', fontFamily: 'JetBrains Mono, monospace' }}>{doc.rule_ref}</code></td>
+          <div className="table-responsive">
+            <table className="doc-table">
+              <thead>
+                <tr>
+                  <th>Document</th>
+                  <th>Status</th>
+                  <th>Note</th>
+                  <th>Rule</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {data.banks[selectedBank].requirements.map((doc, i) => (
+                  <tr key={i}>
+                    <td style={{ fontWeight: 500 }}>{doc.doc}</td>
+                    <td>
+                      <span className={`badge ${statusBadge[doc.status]}`}>
+                        {statusIcon[doc.status]} {doc.status.toUpperCase()}
+                      </span>
+                    </td>
+                    <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{doc.note}</td>
+                    <td><code style={{ fontSize: 10, color: 'var(--accent)', fontFamily: 'JetBrains Mono, monospace' }}>{doc.rule_ref}</code></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -1299,7 +1301,7 @@ function CreditScreen() {
   }, [])
 
   return (
-    <div style={{ padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: 22 }}>
+    <div className="page-container fade-in">
       <div className="notification notification-info">
         <span>⭐</span>
         <span>6 steps from first account to your PBOC Credit Reference Report. No score predictions. No approval predictions. [RB-CN-CR-01 – CR-06]</span>
@@ -1426,6 +1428,7 @@ export default function App() {
   const [page, setPage] = useState('dashboard')
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
   const [authLoading, setAuthLoading] = useState(true)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   // Try restoring existing login session on mount
   useEffect(() => {
@@ -1504,21 +1507,40 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      {/* Sidebar */}
-      <div className="sidebar">
+      {/* Mobile Backdrop Overlay */}
+      <div
+        className={`sidebar-backdrop ${mobileMenuOpen ? 'open' : ''}`}
+        onClick={() => setMobileMenuOpen(false)}
+      />
+
+      {/* Sidebar / Mobile Drawer */}
+      <div className={`sidebar ${mobileMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-logo">
           <div className="logo-icon">✈️</div>
-          <div>
+          <div style={{ flex: 1 }}>
             <div className="logo-text">Landfall</div>
             <div className="logo-sub">Financial AI</div>
           </div>
+          <button
+            className="mobile-close-btn"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-label="Close navigation menu"
+          >
+            ✕
+          </button>
         </div>
 
         <div className="nav-section">
           <div className="nav-label">Navigation</div>
           {NAV.map(item => (
-            <button key={item.id} className={`nav-item ${page === item.id ? 'active' : ''}`}
-              onClick={() => setPage(item.id)}>
+            <button
+              key={item.id}
+              className={`nav-item ${page === item.id ? 'active' : ''}`}
+              onClick={() => {
+                setPage(item.id)
+                setMobileMenuOpen(false)
+              }}
+            >
               <span className="nav-icon">{item.icon}</span>
               <span>{item.label}</span>
             </button>
@@ -1540,7 +1562,10 @@ export default function App() {
               <button
                 className="btn btn-ghost btn-sm"
                 style={{ padding: '4px 6px', fontSize: 13 }}
-                onClick={() => setIsProfileModalOpen(true)}
+                onClick={() => {
+                  setIsProfileModalOpen(true)
+                  setMobileMenuOpen(false)
+                }}
                 title="Edit profile & destination"
               >
                 ⚙️
@@ -1561,13 +1586,22 @@ export default function App() {
       {/* Main Content */}
       <div className="main-content">
         <div className="page-header">
-          <div>
-            <div className="page-title">{currentNav?.icon} {currentNav?.label}</div>
-            <div className="page-subtitle">
-              {curInfo.flag} {profile.home_city || 'Origin'}, {profile.home_country || 'Home'} ({profile.home_currency || 'INR'} {profile.home_currency_symbol || curInfo.symbol}) ➔ 🇨🇳 Shenzhen, China ({profile.host_university || 'Shenzhen University'})
+          <div className="page-header-main">
+            <button
+              className="mobile-menu-toggle"
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label="Open Navigation Menu"
+            >
+              ☰
+            </button>
+            <div>
+              <div className="page-title">{currentNav?.icon} {currentNav?.label}</div>
+              <div className="page-subtitle">
+                {curInfo.flag} {profile.home_city || 'Origin'}, {profile.home_country || 'Home'} ({profile.home_currency || 'INR'} {profile.home_currency_symbol || curInfo.symbol}) ➔ 🇨🇳 Shenzhen ({profile.host_university || 'Shenzhen University'})
+              </div>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="page-header-actions">
             <button
               className="btn btn-secondary btn-sm"
               onClick={() => setIsProfileModalOpen(true)}
@@ -1604,6 +1638,52 @@ export default function App() {
         </div>
 
         <ChatPanel profile={profile} />
+
+        {/* Mobile Bottom Navigation Bar */}
+        <div className="mobile-bottom-nav">
+          <button
+            className={`mobile-bottom-nav-item ${page === 'dashboard' ? 'active' : ''}`}
+            onClick={() => setPage('dashboard')}
+          >
+            <span className="bottom-nav-icon">🏠</span>
+            <span className="bottom-nav-label">Dashboard</span>
+          </button>
+          <button
+            className={`mobile-bottom-nav-item ${page === 'plan' ? 'active' : ''}`}
+            onClick={() => setPage('plan')}
+          >
+            <span className="bottom-nav-icon">📋</span>
+            <span className="bottom-nav-label">Plan</span>
+          </button>
+          <button
+            className={`mobile-bottom-nav-item ${page === 'tuition' ? 'active' : ''}`}
+            onClick={() => setPage('tuition')}
+          >
+            <span className="bottom-nav-icon">🎓</span>
+            <span className="bottom-nav-label">Tuition</span>
+          </button>
+          <button
+            className={`mobile-bottom-nav-item ${page === 'remittance' ? 'active' : ''}`}
+            onClick={() => setPage('remittance')}
+          >
+            <span className="bottom-nav-icon">💱</span>
+            <span className="bottom-nav-label">Routes</span>
+          </button>
+          <button
+            className={`mobile-bottom-nav-item ${page === 'scam' ? 'active' : ''}`}
+            onClick={() => setPage('scam')}
+          >
+            <span className="bottom-nav-icon">🛡</span>
+            <span className="bottom-nav-label">Scam</span>
+          </button>
+          <button
+            className="mobile-bottom-nav-item"
+            onClick={() => setMobileMenuOpen(true)}
+          >
+            <span className="bottom-nav-icon">☰</span>
+            <span className="bottom-nav-label">More</span>
+          </button>
+        </div>
 
         <ProfileModal
           profile={profile}
