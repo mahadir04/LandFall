@@ -318,13 +318,13 @@ export function SAFEMeter({ currentCNY = 28000 }) {
   const pct = Math.min(100, Math.round((currentUSD / maxUSD) * 100))
 
   return (
-    <div style={{ padding: '14px 18px', borderRadius: 12, background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+    <div className="card card-green fade-in" style={{ padding: '16px 20px', borderRadius: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 16 }}>🛡</span>
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>SAFE Inbound Reporting Quota</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 18 }}>🛡</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--green)' }}>SAFE Inbound Regulatory Quota (Annual Limit)</span>
         </div>
-        <span className="badge badge-green">Within Annual Quota (Tier 1)</span>
+        <span className="badge badge-green">✓ Within Annual Quota (Tier 1)</span>
       </div>
 
       <div style={{ width: '100%', height: 8, background: '#e2e8f0', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>

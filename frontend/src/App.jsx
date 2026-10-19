@@ -537,20 +537,20 @@ function Dashboard({ profile, plan, onNavigate }) {
       </div>
 
       <div className="grid-3">
-        <div className="card stat-card floating-card">
-          <div className="card-title">Allocated Budget</div>
+        <div className="card stat-card card-blue floating-card">
+          <div className="card-title" style={{ color: 'var(--accent)' }}>Allocated Budget</div>
           <div className="stat-value" style={{ color: 'var(--accent)' }}>¥{Number(profile?.monthly_budget_cny || 50000).toLocaleString()}</div>
           <div className="stat-label">
             ≈ {curInfo.symbol}{Math.round((profile?.monthly_budget_cny || 50000) * curInfo.cnyToCurrency).toLocaleString()} {curInfo.code}
           </div>
         </div>
-        <div className="card stat-card floating-card" style={{ animationDelay: '0.4s' }}>
-          <div className="card-title">Days to Arrival</div>
-          <div className="stat-value" style={{ color: 'var(--yellow)' }}>{daysToArrival}</div>
+        <div className="card stat-card card-red floating-card" style={{ animationDelay: '0.4s' }}>
+          <div className="card-title" style={{ color: 'var(--red)' }}>Days to Arrival</div>
+          <div className="stat-value" style={{ color: 'var(--red)' }}>{daysToArrival}</div>
           <div className="stat-label">Arrival: {profile?.arrival_date || 'Dec 1, 2026'}</div>
         </div>
-        <div className="card stat-card floating-card" style={{ animationDelay: '0.8s' }}>
-          <div className="card-title">{curInfo.code} / CNY Benchmark</div>
+        <div className="card stat-card card-green floating-card" style={{ animationDelay: '0.8s' }}>
+          <div className="card-title" style={{ color: 'var(--green)' }}>{curInfo.code} / CNY Benchmark</div>
           <div className="stat-value" style={{ color: 'var(--green)' }}>{curInfo.midRateToCNY}</div>
           <div className="stat-label">1 {curInfo.code} = {curInfo.midRateToCNY} CNY</div>
         </div>
@@ -826,11 +826,15 @@ function TuitionScreen({ profile }) {
         </div>
 
         {verifyResult && (
-          <div className="card fade-in" style={{ border: `2px solid ${statusColors[verifyResult.status]}`, background: verifyResult.status === 'VERIFIED' ? 'var(--green-dim)' : 'var(--red-dim)' }}>
+          <div className="card fade-in" style={{
+            border: `2px solid ${verifyResult.status === 'VERIFIED' ? 'var(--green)' : 'var(--red)'}`,
+            background: verifyResult.status === 'VERIFIED' ? '#ecfdf5' : '#fef2f2',
+            boxShadow: verifyResult.status === 'VERIFIED' ? '0 4px 16px rgba(22, 163, 74, 0.15)' : '0 4px 16px rgba(220, 38, 38, 0.15)'
+          }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
               <span style={{ fontSize: 32 }}>{statusIcons[verifyResult.status]}</span>
               <div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: statusColors[verifyResult.status] }}>{verifyResult.status}</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: verifyResult.status === 'VERIFIED' ? 'var(--green)' : 'var(--red)' }}>{verifyResult.status}</div>
                 <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{verifyResult.message}</div>
               </div>
             </div>
@@ -1021,18 +1025,18 @@ function ScamScreen() {
 
   return (
     <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div className="notification notification-info">
+      <div className="notification notification-error" style={{ background: '#fef2f2', border: '1.5px solid #fca5a5', color: '#991b1b' }}>
         <span>🛡</span>
-        <span>Scam Shield uses rule-based signal scoring. The model only explains. Thresholds are frozen. [RB-CN-SCAM-01]</span>
+        <span><strong>High-Risk Scam Defense:</strong> Scam Shield uses strict rule-based signal scoring against phishing, tuition redirection, and discount fraud. [RB-CN-SCAM-01]</span>
       </div>
 
-      <div className="card">
-        <div className="card-title">Paste Suspicious Message</div>
+      <div className="card card-red">
+        <div className="card-title" style={{ color: 'var(--red)' }}>🛡 Anti-Fraud Message & Tuition Offer Scanner</div>
         <textarea className="textarea" value={text} onChange={e => setText(e.target.value)}
-          placeholder="Paste a suspicious message, invoice text, or WhatsApp message here..." />
+          placeholder="Paste a suspicious message, discount offer, invoice text, or WeChat message here..." />
         <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button className="btn btn-primary" onClick={check} disabled={loading || !text.trim()}>
-            {loading ? '⏳' : '🛡'} Analyze
+          <button className="btn btn-danger" onClick={check} disabled={loading || !text.trim()}>
+            {loading ? '⏳ Analyzing Signals...' : '🚨 Analyze Threat Signals'}
           </button>
           <button className="btn btn-ghost btn-sm" onClick={() => { setText(''); setResult(null); }}>Clear</button>
         </div>
