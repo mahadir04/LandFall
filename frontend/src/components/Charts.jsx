@@ -387,7 +387,10 @@ export function CreditProgressGauge({ completedSteps = 3, totalSteps = 6 }) {
       <div>
         <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>PBOC Credit Reference Pathway</div>
         <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-          {completedSteps} of {totalSteps} foundational milestones unlocked. Month 4 opens secured card application; Month 10 unlocks credit reference report inquiry.
+          {completedSteps === 0 && '0 of 6 milestones completed. Step 1 (Open Bank Account) is ready for verification.'}
+          {completedSteps > 0 && completedSteps < 3 && `${completedSteps} of ${totalSteps} milestones verified. Next: Step ${completedSteps + 1}. Bind local payment rails to progress.`}
+          {completedSteps >= 3 && completedSteps < 6 && `${completedSteps} of ${totalSteps} milestones verified. Month 4 opens secured card application; Month 10 unlocks credit reference report inquiry.`}
+          {completedSteps === 6 && 'All 6 milestones verified! You are fully eligible to pull your official PBOC Credit Reference Report.'}
         </div>
         <div style={{ marginTop: 6 }}>
           <span className="badge badge-accent">No Score Predictions · Sourced Milestones</span>

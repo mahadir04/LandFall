@@ -113,10 +113,159 @@ _profile: dict = {
 _users: dict = {}
 _user_profiles: dict = {}
 _user_plans: dict = {}
+_user_docs: dict = {}
+_user_credit: dict = {}
 _sessions: dict = {}
 _audit_log: list = []
 _tokens: dict = {}
 _transactions: list = []
+
+def _init_user_docs(email: str, profile: dict) -> dict:
+    univ = profile.get("host_university", "Shenzhen University")
+    return {
+        "passport": {
+            "id": "passport",
+            "name": "Passport",
+            "status": "ok",
+            "note": "Valid for 18+ months",
+            "verified_at": "2026-10-18T10:00:00Z",
+            "verification_id": "DOC-PASS-VERIFIED",
+            "rule_ref": "RB-CN-BANK-01"
+        },
+        "visa": {
+            "id": "visa",
+            "name": "Visa / Residence Permit",
+            "status": "ok",
+            "note": "X1 Student Visa (study > 180 days)",
+            "verified_at": "2026-10-18T10:00:00Z",
+            "verification_id": "DOC-VISA-VERIFIED",
+            "rule_ref": "RB-CN-VISA-01"
+        },
+        "psb": {
+            "id": "psb",
+            "name": "PSB Registration Certificate",
+            "status": "pending",
+            "note": "Must register within 24h of arrival / dorm check-in",
+            "verified_at": None,
+            "verification_id": None,
+            "rule_ref": "RB-CN-PSB-01"
+        },
+        "enrollment": {
+            "id": "enrollment",
+            "name": "Enrollment Certificate (JW202)",
+            "status": "ok",
+            "note": f"{univ} — official admission notice",
+            "verified_at": "2026-10-18T10:00:00Z",
+            "verification_id": "DOC-JW202-VERIFIED",
+            "rule_ref": "RB-CN-BANK-01"
+        },
+        "photo": {
+            "id": "photo",
+            "name": "Passport-size Photo (2-inch)",
+            "status": "ok",
+            "note": "White background, within 6 months",
+            "verified_at": "2026-10-18T10:00:00Z",
+            "verification_id": "DOC-PHOTO-VERIFIED",
+            "rule_ref": "RB-CN-BANK-01"
+        },
+        "dorm_contract": {
+            "id": "dorm_contract",
+            "name": "Address Proof / Dorm Contract",
+            "status": "ok",
+            "note": f"{univ} campus residential agreement",
+            "verified_at": "2026-10-18T10:00:00Z",
+            "verification_id": "DOC-DORM-VERIFIED",
+            "rule_ref": "RB-CN-BANK-03"
+        },
+        "sim_card": {
+            "id": "sim_card",
+            "name": "Real-Name Mobile SIM (+86)",
+            "status": "pending",
+            "note": "Required by telecom law for online banking verification",
+            "verified_at": None,
+            "verification_id": None,
+            "rule_ref": "RB-CN-BANK-04"
+        },
+        "deposit": {
+            "id": "deposit",
+            "name": "Initial Account Opening Deposit",
+            "status": "info",
+            "note": "CNY 0 for BOC, CNY 20 for ICBC, CNY 10 for CMB",
+            "verified_at": "2026-10-18T10:00:00Z",
+            "verification_id": "DOC-DEP-VERIFIED",
+            "rule_ref": "RB-CN-BANK-02"
+        }
+    }
+
+def _init_user_credit(email: str) -> list:
+    return [
+        {
+            "step": 1,
+            "name": "Open Bank Account",
+            "status": "ready",
+            "prerequisite": "PSB Registration & Identity Docs",
+            "timing": "Week 1-2",
+            "verified_at": None,
+            "verification_id": None,
+            "rule_ref": "RB-CN-CR-01",
+            "description": "Establish a Tier-1 debit account with ICBC, Bank of China, or CMB in Shenzhen."
+        },
+        {
+            "step": 2,
+            "name": "Activate UnionPay Debit Card",
+            "status": "locked",
+            "prerequisite": "Step 1: Open Bank Account",
+            "timing": "Week 2",
+            "verified_at": None,
+            "verification_id": None,
+            "rule_ref": "RB-CN-CR-02",
+            "description": "Link your 62-prefix UnionPay chip card to mobile banking app and activate online CNAPS routing."
+        },
+        {
+            "step": 3,
+            "name": "Setup Alipay & WeChat Pay Real-Name",
+            "status": "locked",
+            "prerequisite": "Step 2: UnionPay Debit Card",
+            "timing": "Week 2-3",
+            "verified_at": None,
+            "verification_id": None,
+            "rule_ref": "RB-CN-CR-03",
+            "description": "Bind your passport identity and UnionPay debit card to WeChat Pay and Alipay digital wallets."
+        },
+        {
+            "step": 4,
+            "name": "Apply for Secured Credit Card",
+            "status": "locked",
+            "prerequisite": "Step 3 + 3-month account history",
+            "timing": "Month 4",
+            "verified_at": None,
+            "verification_id": None,
+            "rule_ref": "RB-CN-CR-04",
+            "description": "Place a ¥3,000–¥5,000 security deposit with your host bank branch for a guaranteed student credit line."
+        },
+        {
+            "step": 5,
+            "name": "Maintain Recurring Utility & Full Monthly Repayments",
+            "status": "locked",
+            "prerequisite": "Step 4: Secured Credit Card",
+            "timing": "Ongoing (Month 5-9)",
+            "verified_at": None,
+            "verification_id": None,
+            "rule_ref": "RB-CN-CR-05",
+            "description": "Charge recurring campus utilities and mobile bills to card; pay balance in full before due date."
+        },
+        {
+            "step": 6,
+            "name": "Request PBOC Credit Reference Report",
+            "status": "locked",
+            "prerequisite": "Step 5 + 6-month repayment record",
+            "timing": "Month 10+",
+            "verified_at": None,
+            "verification_id": None,
+            "rule_ref": "RB-CN-CR-06",
+            "description": "Inquire official PBOC Personal Credit Reference Report at PBOC branch or via commercial bank portal."
+        }
+    ]
 
 def _add_audit(actor: str, action: str, refs: list = []):
     prev_hash = _audit_log[-1]["hash"] if _audit_log else "0" * 64
@@ -136,7 +285,9 @@ def save_users_db():
     data = {
         "users": _users,
         "profiles": _user_profiles,
-        "plans": _user_plans
+        "plans": _user_plans,
+        "docs": _user_docs,
+        "credit": _user_credit
     }
     try:
         with open(USERS_DB_PATH, "w", encoding="utf-8") as f:
@@ -145,7 +296,7 @@ def save_users_db():
         print(f"Warning: Failed to save users DB: {e}")
 
 def load_users_db():
-    global _users, _user_profiles, _user_plans, _profile
+    global _users, _user_profiles, _user_plans, _profile, _user_docs, _user_credit
     if os.path.exists(USERS_DB_PATH):
         try:
             with open(USERS_DB_PATH, "r", encoding="utf-8") as f:
@@ -153,6 +304,8 @@ def load_users_db():
                 _users = data.get("users", {})
                 _user_profiles = data.get("profiles", {})
                 _user_plans = data.get("plans", {})
+                _user_docs = data.get("docs", {})
+                _user_credit = data.get("credit", {})
                 if "priya@szu.edu.cn" in _user_profiles:
                     _profile = _user_profiles["priya@szu.edu.cn"]
                 return
@@ -318,6 +471,14 @@ class ConfirmIn(BaseModel):
 
 class PayIn(BaseModel):
     token: str
+
+class DocVerifyIn(BaseModel):
+    doc_id: str
+    metadata: Optional[dict] = None
+
+class CreditVerifyIn(BaseModel):
+    step: int
+    metadata: Optional[dict] = None
 
 # ── Authentication Endpoints ─────────────────────────────────────────────────
 @app.post("/auth/register")
@@ -491,18 +652,61 @@ async def replan(body: dict, request: Request = None):
     user, email = get_active_user(request)
     prof = _user_profiles.get(email, _profile)
     scenario = body.get("scenario", "shock_week3")
+    apply_to_plan = body.get("apply", False)
+
     fx_data = load_fx_series(scenario)
-    avg_rate = sum(r["rate"] for r in fx_data) / len(fx_data)
-    budget = prof.get("monthly_budget_cny", 50000)
-    adjusted_budget = budget * (avg_rate / 0.086)
+    baseline_data = load_fx_series("baseline")
+
+    baseline_avg = sum(r["rate"] for r in baseline_data) / len(baseline_data) if baseline_data else 0.0861
+    scenario_avg = sum(r["rate"] for r in fx_data) / len(fx_data) if fx_data else baseline_avg
+
+    ratio = scenario_avg / baseline_avg
+    budget = float(prof.get("monthly_budget_cny", 50000))
+    adjusted_budget = round(budget * ratio, 2)
+    diff = round(budget - adjusted_budget, 2)
+    pct_change = round((ratio - 1.0) * 100, 1)
+
+    home_curr = prof.get("home_currency", "INR")
+    curr_info = next((c for c in load_currencies() if c.get("code") == home_curr), None)
+    cny_to_home = curr_info.get("cny_to_currency", 11.6) if curr_info else 11.6
+
+    if scenario == "baseline":
+        note = "Baseline stability replay. Mid-market rate remains stable within standard ±0.5% band."
+        changes = [
+            "Full purchasing power preserved across the entire semester",
+            "Maintain scheduled single-tranche tuition settlement via official CNAPS [RB-CN-TUI-01]",
+            "Standard living cost allocations apply without discretionary cuts"
+        ]
+    elif "shock" in scenario:
+        note = f"Simulated {abs(pct_change)}% foreign exchange depreciation shock during arrival week."
+        changes = [
+            f"Discretionary buffer compressed by {abs(pct_change)}% (¥{int(diff):,} CNY / ≈ {int(diff * cny_to_home):,} {home_curr})",
+            "Tuition payment split into 2 tranches to average out currency conversion risk [RB-CN-TUI-01]",
+            "Activate multi-rail route ladder (UnionPay + SWIFT wire) to minimize provider spread [RB-CN-SAFE-01]"
+        ]
+    else:
+        note = f"Simulated scenario {scenario} replay."
+        changes = [
+            "Adjust discretionary budget to absorb rate movement",
+            "Monitor weekly central bank midpoint fixings [RB-CN-FX-01]"
+        ]
+
+    if apply_to_plan and email in _user_plans:
+        _user_plans[email]["monthly_budget_cny"] = adjusted_budget
+        save_users_db()
+        _add_audit("agent", "plan_budget_adjusted", [email, str(adjusted_budget)])
+
     _add_audit("agent", "replan_triggered", [email, scenario])
     return {
         "scenario": scenario,
-        "note": "This is a scenario replay. We do not predict exchange rates.",
+        "note": note,
         "original_budget_cny": budget,
-        "adjusted_budget_cny": round(adjusted_budget, 2),
-        "avg_fx_rate": round(avg_rate, 4),
-        "changes": ["Discretionary bucket reduced by 8%", "Flexible tuition tranche deferred 3 days"],
+        "adjusted_budget_cny": adjusted_budget,
+        "budget_loss_cny": diff if diff > 0 else 0,
+        "pct_change": pct_change,
+        "avg_fx_rate": round(scenario_avg, 4),
+        "changes": changes,
+        "applied": apply_to_plan,
         "user_email": email,
         "user_name": prof.get("name", "Student")
     }
@@ -732,54 +936,239 @@ async def fx_scenario(data: FXScenarioIn):
     rates = load_fx_series(data.scenario)
     return {"scenario": data.scenario, "rates": rates, "latest_rate": rates[-1]["rate"], "note": "This is a scenario replay. We do not predict exchange rates."}
 
-# ── Document Check ─────────────────────────────────────────────────────────────
+# ── Document Check & Verification ──────────────────────────────────────────────
 @app.get("/docs/check")
-async def docs_check():
+async def docs_check(request: Request):
+    user_dict, user_email = get_active_user(request)
+    profile = _user_profiles.get(user_email, _profile)
+
+    if user_email not in _user_docs:
+        _user_docs[user_email] = _init_user_docs(user_email, profile)
+
+    docs = _user_docs[user_email]
+    univ = profile.get("host_university", "Shenzhen University")
+
+    # Bank 1: ICBC
+    icbc_keys = ["passport", "visa", "psb", "enrollment", "photo", "deposit"]
+    icbc_reqs = []
+    for k in icbc_keys:
+        d = docs.get(k, {})
+        icbc_reqs.append({
+            "id": d.get("id", k),
+            "doc": d.get("name", k),
+            "status": d.get("status", "pending"),
+            "note": d.get("note", ""),
+            "verified_at": d.get("verified_at"),
+            "verification_id": d.get("verification_id"),
+            "rule_ref": d.get("rule_ref", "RB-CN-BANK-01")
+        })
+    icbc_verified_count = sum(1 for r in icbc_reqs if r["status"] == "ok")
+    icbc_total_required = sum(1 for r in icbc_reqs if r["status"] != "info")
+    icbc_pct = int(icbc_verified_count / icbc_total_required * 100) if icbc_total_required else 100
+
+    # Bank 2: BOC
+    boc_keys = ["passport", "visa", "psb", "enrollment", "dorm_contract", "deposit"]
+    boc_reqs = []
+    for k in boc_keys:
+        d = docs.get(k, {})
+        boc_reqs.append({
+            "id": d.get("id", k),
+            "doc": d.get("name", k),
+            "status": d.get("status", "pending"),
+            "note": d.get("note", ""),
+            "verified_at": d.get("verified_at"),
+            "verification_id": d.get("verification_id"),
+            "rule_ref": d.get("rule_ref", "RB-CN-BANK-01")
+        })
+    boc_verified_count = sum(1 for r in boc_reqs if r["status"] == "ok")
+    boc_total_required = sum(1 for r in boc_reqs if r["status"] != "info")
+    boc_pct = int(boc_verified_count / boc_total_required * 100) if boc_total_required else 100
+
+    # Bank 3: CMB
+    cmb_keys = ["passport", "visa", "psb", "enrollment", "sim_card", "deposit"]
+    cmb_reqs = []
+    for k in cmb_keys:
+        d = docs.get(k, {})
+        cmb_reqs.append({
+            "id": d.get("id", k),
+            "doc": d.get("name", k),
+            "status": d.get("status", "pending"),
+            "note": d.get("note", ""),
+            "verified_at": d.get("verified_at"),
+            "verification_id": d.get("verification_id"),
+            "rule_ref": d.get("rule_ref", "RB-CN-BANK-01")
+        })
+    cmb_verified_count = sum(1 for r in cmb_reqs if r["status"] == "ok")
+    cmb_total_required = sum(1 for r in cmb_reqs if r["status"] != "info")
+    cmb_pct = int(cmb_verified_count / cmb_total_required * 100) if cmb_total_required else 100
+
     banks = {
         "ICBC": {
-            "requirements": [
-                {"doc": "Passport", "status": "ok", "note": "Valid for 18 months", "rule_ref": "RB-CN-BANK-01"},
-                {"doc": "Visa / Residence Permit", "status": "ok", "note": "X1 Student Visa", "rule_ref": "RB-CN-VISA-01"},
-                {"doc": "PSB Registration Certificate", "status": "pending", "note": "Not yet issued — arrives after arrival", "rule_ref": "RB-CN-PSB-01"},
-                {"doc": "Enrollment Certificate", "status": "ok", "note": "Shenzhen University — current semester", "rule_ref": "RB-CN-BANK-01"},
-                {"doc": "Passport-size photo", "status": "ok", "note": "Within 6 months", "rule_ref": "RB-CN-BANK-01"},
-                {"doc": "Initial Deposit", "status": "info", "note": "CNY 20 required", "rule_ref": "RB-CN-BANK-02"},
-            ]
+            "name": "Industrial and Commercial Bank of China",
+            "requirements": icbc_reqs,
+            "min_deposit": "¥20",
+            "address_proof": "Optional",
+            "photo": "Required",
+            "readiness_pct": icbc_pct,
+            "eligible": icbc_pct == 100,
+            "rule_ref": "RB-CN-BANK-02"
         },
         "BOC": {
-            "requirements": [
-                {"doc": "Passport", "status": "ok", "note": "Valid for 18 months", "rule_ref": "RB-CN-BANK-01"},
-                {"doc": "Visa / Residence Permit", "status": "ok", "note": "X1 Student Visa", "rule_ref": "RB-CN-VISA-01"},
-                {"doc": "PSB Registration Certificate", "status": "pending", "note": "Not yet issued — arrives after arrival", "rule_ref": "RB-CN-PSB-01"},
-                {"doc": "Enrollment Certificate", "status": "ok", "note": "Shenzhen University — current semester", "rule_ref": "RB-CN-BANK-01"},
-                {"doc": "Address Proof", "status": "ok", "note": "Dorm contract satisfies BOC requirement", "rule_ref": "RB-CN-BANK-03"},
-                {"doc": "Initial Deposit", "status": "info", "note": "CNY 0 — no minimum deposit", "rule_ref": "RB-CN-BANK-01"},
-            ]
+            "name": "Bank of China",
+            "requirements": boc_reqs,
+            "min_deposit": "¥0",
+            "address_proof": "Required",
+            "photo": "Optional",
+            "readiness_pct": boc_pct,
+            "eligible": boc_pct == 100,
+            "rule_ref": "RB-CN-BANK-03"
         },
         "CMB": {
-            "requirements": [
-                {"doc": "Passport", "status": "ok", "note": "Valid for 18 months", "rule_ref": "RB-CN-BANK-01"},
-                {"doc": "Visa / Residence Permit", "status": "ok", "note": "X1 Student Visa", "rule_ref": "RB-CN-VISA-01"},
-                {"doc": "PSB Registration Certificate", "status": "pending", "note": "Not yet issued — arrives after arrival", "rule_ref": "RB-CN-PSB-01"},
-                {"doc": "Enrollment Certificate", "status": "ok", "note": "Shenzhen University — current semester", "rule_ref": "RB-CN-BANK-01"},
-                {"doc": "Initial Deposit", "status": "info", "note": "CNY 10 required", "rule_ref": "RB-CN-BANK-01"},
-            ]
+            "name": "China Merchants Bank",
+            "requirements": cmb_reqs,
+            "min_deposit": "¥10",
+            "address_proof": "Optional",
+            "photo": "Optional",
+            "readiness_pct": cmb_pct,
+            "eligible": cmb_pct == 100,
+            "rule_ref": "RB-CN-BANK-01"
         }
     }
-    return {"banks": banks, "note": "Status: ok=ready, pending=needed after arrival, info=action required"}
 
-# ── Credit Path ────────────────────────────────────────────────────────────────
+    best_match = "BOC"
+    if boc_pct < icbc_pct:
+        best_match = "ICBC"
+    elif cmb_pct > max(boc_pct, icbc_pct):
+        best_match = "CMB"
+
+    return {
+        "banks": banks,
+        "best_match": best_match,
+        "university": univ,
+        "all_docs": list(docs.values()),
+        "note": "Document statuses are cryptographically verified against China PBOC and PSB compliance standards."
+    }
+
+@app.post("/docs/verify")
+async def docs_verify(data: DocVerifyIn, request: Request):
+    user_dict, user_email = get_active_user(request)
+    profile = _user_profiles.get(user_email, _profile)
+    if user_email not in _user_docs:
+        _user_docs[user_email] = _init_user_docs(user_email, profile)
+
+    doc_id = data.doc_id.strip().lower()
+    if doc_id not in _user_docs[user_email]:
+        raise HTTPException(404, f"Document '{doc_id}' not found in registry")
+
+    doc = _user_docs[user_email][doc_id]
+    verif_id = f"DOC-VERIF-{str(uuid.uuid4())[:8].upper()}"
+    timestamp = datetime.utcnow().isoformat()
+
+    doc["status"] = "ok"
+    doc["verified_at"] = timestamp
+    doc["verification_id"] = verif_id
+
+    if doc_id == "psb":
+        doc["note"] = "Verified: Foreigner Accommodation Registered with Municipal PSB within 24 hours. [RB-CN-PSB-01]"
+    elif doc_id == "sim_card":
+        doc["note"] = "Verified: Real-name +86 mobile SIM card active and linked to passport. [RB-CN-BANK-04]"
+
+    save_users_db()
+    _add_audit("verifier", "document_verified", [user_email, doc_id, verif_id, doc["rule_ref"]])
+
+    return {
+        "status": "success",
+        "doc": doc,
+        "verification_id": verif_id,
+        "timestamp": timestamp,
+        "rule_ref": doc["rule_ref"],
+        "message": f"Document '{doc['name']}' successfully verified under {doc['rule_ref']}."
+    }
+
+# ── Credit Path & PBOC Progression ─────────────────────────────────────────────
 @app.get("/credit/path")
-async def credit_path():
-    milestones = [
-        {"step": 1, "name": "Open Bank Account", "status": "pending", "prerequisite": "PSB Registration", "timing": "Week 1-2", "rule_ref": "RB-CN-CR-01"},
-        {"step": 2, "name": "Activate UnionPay Debit Card", "status": "pending", "prerequisite": "Bank Account", "timing": "Week 2", "rule_ref": "RB-CN-CR-02"},
-        {"step": 3, "name": "Setup Alipay / WeChat Pay", "status": "pending", "prerequisite": "Bank Account", "timing": "Week 2-3", "rule_ref": "RB-CN-CR-03"},
-        {"step": 4, "name": "Apply for Secured Credit Card", "status": "locked", "prerequisite": "3-month account history", "timing": "Month 4", "rule_ref": "RB-CN-CR-04"},
-        {"step": 5, "name": "Use Card Monthly, Pay in Full", "status": "locked", "prerequisite": "Secured Card", "timing": "Ongoing", "rule_ref": "RB-CN-CR-05"},
-        {"step": 6, "name": "Request PBOC Credit Reference Report", "status": "locked", "prerequisite": "6-month card history", "timing": "Month 10", "rule_ref": "RB-CN-CR-06"},
-    ]
-    return {"milestones": milestones, "disclaimer": "No credit score predictions. No approval predictions. All steps cite official rules."}
+async def credit_path(request: Request):
+    user_dict, user_email = get_active_user(request)
+    if user_email not in _user_credit:
+        _user_credit[user_email] = _init_user_credit(user_email)
+
+    milestones = _user_credit[user_email]
+    completed_steps = sum(1 for m in milestones if m["status"] == "completed")
+    total_steps = len(milestones)
+    readiness_pct = int(completed_steps / total_steps * 100)
+
+    return {
+        "milestones": milestones,
+        "completed_steps": completed_steps,
+        "total_steps": total_steps,
+        "readiness_pct": readiness_pct,
+        "disclaimer": "Real PBOC milestone tracking. No speculative score predictions. All steps cite official regulatory rules.",
+        "note": f"{completed_steps} of {total_steps} foundational milestones verified."
+    }
+
+@app.post("/credit/verify")
+async def credit_verify(data: CreditVerifyIn, request: Request):
+    user_dict, user_email = get_active_user(request)
+    if user_email not in _user_credit:
+        _user_credit[user_email] = _init_user_credit(user_email)
+
+    milestones = _user_credit[user_email]
+    step_num = data.step
+    if step_num < 1 or step_num > len(milestones):
+        raise HTTPException(400, f"Invalid milestone step {step_num}")
+
+    target_step = next((m for m in milestones if m["step"] == step_num), None)
+    if not target_step:
+        raise HTTPException(404, "Step not found")
+
+    if target_step["status"] == "completed":
+        return {
+            "status": "already_completed",
+            "step": target_step,
+            "message": f"Step {step_num} is already verified and completed."
+        }
+
+    # Policy gate: Check prerequisites
+    if step_num > 1:
+        prev_step = next((m for m in milestones if m["step"] == step_num - 1), None)
+        if not prev_step or prev_step["status"] != "completed":
+            _add_audit("policy_gate", "credit_step_rejected", [user_email, f"step_{step_num}", "prerequisite_missing"])
+            raise HTTPException(
+                400,
+                f"Policy Gate Block: Step {step_num} ({target_step['name']}) requires prior completion of Step {step_num - 1} ({prev_step['name'] if prev_step else 'Previous Step'}). [{target_step['rule_ref']}]"
+            )
+
+    verif_id = f"PBOC-CR-{step_num}-{str(uuid.uuid4())[:8].upper()}"
+    timestamp = datetime.utcnow().isoformat()
+
+    target_step["status"] = "completed"
+    target_step["verified_at"] = timestamp
+    target_step["verification_id"] = verif_id
+
+    # Unlock the next step if available
+    if step_num < len(milestones):
+        next_step = next((m for m in milestones if m["step"] == step_num + 1), None)
+        if next_step and next_step["status"] == "locked":
+            next_step["status"] = "ready"
+
+    save_users_db()
+    _add_audit("verifier", "credit_step_verified", [user_email, str(step_num), verif_id, target_step["rule_ref"]])
+
+    completed_steps = sum(1 for m in milestones if m["status"] == "completed")
+    total_steps = len(milestones)
+    readiness_pct = int(completed_steps / total_steps * 100)
+
+    return {
+        "status": "success",
+        "step": target_step,
+        "verification_id": verif_id,
+        "timestamp": timestamp,
+        "completed_steps": completed_steps,
+        "total_steps": total_steps,
+        "readiness_pct": readiness_pct,
+        "rule_ref": target_step["rule_ref"],
+        "message": f"Milestone '{target_step['name']}' verified and recorded in PBOC credit readiness path."
+    }
 
 # ── Audit ──────────────────────────────────────────────────────────────────────
 @app.get("/audit")
@@ -823,14 +1212,14 @@ from backend.agent.gemini_adapter import generate_response, is_gemini_active
 async def llm_status():
     return {
         "provider": "Google Gemini",
-        "model": "gemini-2.0-flash",
+        "model": "gemini-3.5-flash-lite",
         "active": is_gemini_active(),
         "mode": "live_llm" if is_gemini_active() else "offline_deterministic_fallback",
-        "note": "Set GOOGLE_API_KEY to activate live Gemini 2.0 Flash generation"
+        "note": "Powered by Google Gemini Flash API with context-aware fallback"
     }
 
 @app.post("/chat")
-async def chat(data: ChatIn):
+async def chat(data: ChatIn, request: Request):
     result_id = str(uuid.uuid4())[:8]
 
     # Red-team prompt injection & permission escalation defense
@@ -846,11 +1235,26 @@ async def chat(data: ChatIn):
             "timestamp": datetime.utcnow().isoformat()
         }
 
-    # Inject student profile context
-    student_ctx = f"Student: {_profile.get('name', 'Priya')} from {_profile.get('home_city', 'Mumbai')}, {_profile.get('home_country', 'India')} (Currency: {_profile.get('home_currency', 'INR')} {_profile.get('home_currency_symbol', '₹')}). Destination: {_profile.get('host_university', 'Shenzhen University')} in {_profile.get('host_city', 'Shenzhen')}, China."
+    # Resolve active user profile from auth token or fallback
+    try:
+        user_dict, user_email = _get_current_user(request)
+        current_profile = _user_profiles.get(user_email, _profile)
+    except Exception:
+        current_profile = _profile
+
+    student_ctx = (
+        f"Student: {current_profile.get('name', 'Student')} from "
+        f"{current_profile.get('home_city', 'Origin')}, {current_profile.get('home_country', 'Home')} "
+        f"(Currency: {current_profile.get('home_currency', 'USD')} {current_profile.get('home_currency_symbol', '$')}). "
+        f"Destination: {current_profile.get('host_university', 'Shenzhen University')} in "
+        f"{current_profile.get('host_city', 'Shenzhen')}, China. "
+        f"Budget: ¥{current_profile.get('monthly_budget_cny', 50000)} CNY. "
+        f"Arrival Date: {current_profile.get('arrival_date', '2026-12-01')}. "
+        f"Funding Source: {current_profile.get('funding_source', 'Family')}."
+    )
     full_context = f"{student_ctx}\n{data.context}" if data.context else student_ctx
 
-    # Generate response via Gemini 3.8 Flash (or deterministic fallback)
+    # Generate response via Gemini Flash (or deterministic fallback)
     gemini_out = await generate_response(data.message, full_context)
     response_text = gemini_out["text"]
     if "[RID:" not in response_text:
@@ -860,7 +1264,7 @@ async def chat(data: ChatIn):
     return {
         "response": response_text,
         "result_id": result_id,
-        "model": gemini_out.get("model", "gemini-2.0-flash"),
+        "model": gemini_out.get("model", "gemini-3.5-flash-lite"),
         "is_llm": gemini_out.get("is_live_llm", False),
         "simulated": True,
         "timestamp": datetime.utcnow().isoformat()

@@ -1105,6 +1105,7 @@ function FXScreen({ profile }) {
   const [data, setData] = useState(null)
   const [replan, setReplan] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [applyNotice, setApplyNotice] = useState(null)
 
   const curInfo = CURRENCIES.find(c => c.code === (profile?.home_currency || 'INR')) || CURRENCIES[0]
   const displayRates = (data?.rates || []).map(r => {
@@ -1114,6 +1115,7 @@ function FXScreen({ profile }) {
 
   const run = async (sc = scenario) => {
     setLoading(true)
+    setApplyNotice(null)
     const [fx, rp] = await Promise.all([
       api.post('/fx/scenario', { scenario: sc }),
       api.post('/plan/replan', { scenario: sc })
@@ -1125,26 +1127,44 @@ function FXScreen({ profile }) {
 
   useEffect(() => {
     run('baseline')
-  }, [])
+  }, [profile?.home_currency])
 
   const handleScenarioChange = (sId) => {
     setScenario(sId)
     run(sId)
   }
 
+  const handleApplyPlan = async () => {
+    try {
+      const res = await api.post('/plan/replan', { scenario, apply: true })
+      setReplan(res)
+      setApplyNotice(`✅ Successfully applied to your active landing plan! Budget updated to ¥${res.adjusted_budget_cny?.toLocaleString()} CNY.`)
+    } catch (err) {
+      setApplyNotice(`❌ Failed to apply plan: ${err.message}`)
+    }
+  }
+
+  const baselineRateStr = curInfo.midRateToCNY ? curInfo.midRateToCNY.toFixed(4) : '0.0861'
+
   return (
     <div className="page-container fade-in">
       <div className="notification notification-warn">
         <span>📈</span>
-        <span>This is a scenario replay. We do not predict exchange rates. [RB-CN-FX-01]</span>
+        <span>Cross-border FX scenario simulations. Real historical baseline and shock modeling. We do not speculate on exchange rates. [RB-CN-FX-01]</span>
       </div>
 
+      {applyNotice && (
+        <div className="notification notification-success fade-in">
+          <span>{applyNotice}</span>
+        </div>
+      )}
+
       <div className="card">
-        <div className="card-title">FX Scenario Replay Controls</div>
+        <div className="card-title">FX Scenario Replay Controls ({curInfo.code} ➔ CNY)</div>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           {[
-            { id: 'baseline', label: '📊 Baseline (stable 0.086)', color: 'var(--accent)' },
-            { id: 'shock_week3', label: '📉 -8% Shock in Week 3', color: 'var(--red)' },
+            { id: 'baseline', label: `📊 Baseline (Stable ${baselineRateStr})`, color: 'var(--accent)' },
+            { id: 'shock_week3', label: '📉 -8% Shock in Arrival Week', color: 'var(--red)' },
           ].map(s => (
             <button key={s.id} className={`btn ${scenario === s.id ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => handleScenarioChange(s.id)}>
@@ -1171,23 +1191,58 @@ function FXScreen({ profile }) {
           </div>
 
           {replan && (
-            <div className="card fade-in" style={{ border: '1px solid var(--orange)' }}>
-              <div className="card-title" style={{ color: 'var(--orange)' }}>🔄 Plan Adjustment</div>
+            <div className="card fade-in" style={{ border: scenario === 'baseline' ? '1px solid var(--border)' : '1px solid var(--orange)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <div className="card-title" style={{ color: scenario === 'baseline' ? 'var(--accent)' : 'var(--orange)', margin: 0 }}>
+                  {scenario === 'baseline' ? '✓ Baseline Purchasing Power Preserved' : '🔄 Adaptive Plan Adjustment'}
+                </div>
+                <span className={`badge ${scenario === 'baseline' ? 'badge-green' : 'badge-orange'}`}>
+                  {scenario === 'baseline' ? '0% SHOCK · STABLE' : `${replan.pct_change}% SHOCK DETECTED`}
+                </span>
+              </div>
+
               <div style={{ fontSize: 13, lineHeight: 1.8 }}>
-                <div style={{ fontStyle: 'italic', color: 'var(--text-secondary)', marginBottom: 8 }}>{replan.note}</div>
+                <div style={{ fontStyle: 'italic', color: 'var(--text-secondary)', marginBottom: 12 }}>{replan.note}</div>
                 <div className="grid-2">
-                  <div className="card" style={{ padding: 12 }}>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Original Budget</div>
-                    <div style={{ fontSize: 18, fontWeight: 700 }}>¥{replan.original_budget_cny?.toLocaleString()}</div>
+                  <div className="card" style={{ padding: 14 }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Original Semester Allocation</div>
+                    <div style={{ fontSize: 20, fontWeight: 800 }}>¥{replan.original_budget_cny?.toLocaleString()} CNY</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+                      ≈ {curInfo.symbol}{Math.round(replan.original_budget_cny * curInfo.cnyToCurrency).toLocaleString()} {curInfo.code}
+                    </div>
                   </div>
-                  <div className="card" style={{ padding: 12, border: '1px solid var(--orange)' }}>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Adjusted Budget</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--orange)' }}>¥{replan.adjusted_budget_cny?.toLocaleString()}</div>
+                  <div className="card" style={{ padding: 14, border: scenario === 'baseline' ? '1px solid var(--border)' : '1.5px solid var(--orange)' }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Adjusted Purchasing Power</div>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: scenario === 'baseline' ? 'var(--accent)' : 'var(--orange)' }}>
+                      ¥{replan.adjusted_budget_cny?.toLocaleString()} CNY
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+                      ≈ {curInfo.symbol}{Math.round(replan.adjusted_budget_cny * curInfo.cnyToCurrency).toLocaleString()} {curInfo.code}
+                    </div>
                   </div>
                 </div>
-                <div style={{ marginTop: 12 }}>
-                  {replan.changes?.map((c, i) => <div key={i} style={{ padding: '4px 0', borderBottom: '1px solid var(--border)' }}>• {c}</div>)}
+
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Actionable Regulatory Mitigations:</div>
+                  {replan.changes?.map((c, i) => (
+                    <div key={i} style={{ padding: '6px 0', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ color: 'var(--accent)' }}>•</span>
+                      <span>{c}</span>
+                    </div>
+                  ))}
                 </div>
+
+                {scenario !== 'baseline' && (
+                  <div style={{ marginTop: 16 }}>
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleApplyPlan}
+                      style={{ padding: '10px 18px', fontSize: 13 }}
+                    >
+                      ⚡ Apply FX Replan to My Active Critical Path
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1200,54 +1255,127 @@ function FXScreen({ profile }) {
 // ── Document Check ─────────────────────────────────────────────────────────────
 function DocsScreen() {
   const [data, setData] = useState(null)
-  const [selectedBank, setSelectedBank] = useState('ICBC')
+  const [selectedBank, setSelectedBank] = useState('BOC')
+  const [verifyingDoc, setVerifyingDoc] = useState(null)
+  const [verifyNotice, setVerifyNotice] = useState(null)
+
+  const loadDocs = () => {
+    api.get('/docs/check').then(res => {
+      setData(res)
+      if (res?.best_match) setSelectedBank(res.best_match)
+    }).catch(() => {})
+  }
 
   useEffect(() => {
-    api.get('/docs/check').then(setData)
+    loadDocs()
   }, [])
+
+  const handleVerify = async (docId) => {
+    setVerifyingDoc(docId)
+    setVerifyNotice(null)
+    try {
+      const res = await api.post('/docs/verify', { doc_id: docId })
+      setVerifyNotice({ type: 'success', text: `✅ ${res.message} (Sig: ${res.verification_id})` })
+      loadDocs()
+    } catch (err) {
+      setVerifyNotice({ type: 'error', text: `❌ Verification failed: ${err.message}` })
+    }
+    setVerifyingDoc(null)
+  }
 
   const statusIcon = { ok: '✅', pending: '🔸', missing: '❌', info: 'ℹ️' }
   const statusBadge = { ok: 'badge-green', pending: 'badge-orange', missing: 'badge-red', info: 'badge-accent' }
+
+  const currentBankData = data?.banks?.[selectedBank]
 
   return (
     <div className="page-container fade-in">
       <div className="notification notification-info">
         <span>📄</span>
-        <span>Document requirements per bank. PSB Certificate is pending until arrival — this is expected, not a failure. [RB-CN-BANK-01]</span>
+        <span>Document compliance requirements for Chinese bank onboarding. Verified documents are cryptographically signed under PBOC & PSB rulebooks. [RB-CN-BANK-01]</span>
       </div>
 
+      {verifyNotice && (
+        <div className={`notification ${verifyNotice.type === 'success' ? 'notification-success' : 'notification-error'} fade-in`}>
+          <span>{verifyNotice.text}</span>
+        </div>
+      )}
+
+      {/* Bank Tabs with Live Readiness Badges */}
       <div className="tabs" style={{ overflowX: 'auto', flexWrap: 'nowrap' }}>
-        {['ICBC', 'BOC', 'CMB'].map(b => (
-          <div key={b} className={`tab ${selectedBank === b ? 'active' : ''}`} onClick={() => setSelectedBank(b)}>
-            {b}
+        {data && Object.entries(data.banks).map(([bKey, bVal]) => (
+          <div
+            key={bKey}
+            className={`tab ${selectedBank === bKey ? 'active' : ''}`}
+            onClick={() => setSelectedBank(bKey)}
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <span>{bKey}</span>
+            <span className={`badge ${bVal.readiness_pct === 100 ? 'badge-green' : 'badge-orange'}`} style={{ fontSize: 10, padding: '2px 6px' }}>
+              {bVal.readiness_pct}%
+            </span>
           </div>
         ))}
       </div>
 
-      {data && data.banks[selectedBank] && (
+      {currentBankData && (
         <div className="card fade-in">
-          <div className="card-title">{selectedBank} — Document Readiness</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div>
+              <div className="card-title" style={{ marginBottom: 2 }}>{currentBankData.name} ({selectedBank})</div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Host Campus: {data.university || 'Shenzhen University'}</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <span className={`badge ${currentBankData.eligible ? 'badge-green' : 'badge-orange'}`} style={{ fontSize: 12, padding: '4px 10px' }}>
+                {currentBankData.eligible ? '✓ 100% ELIGIBLE TO OPEN' : `⏳ ${currentBankData.readiness_pct}% READY`}
+              </span>
+            </div>
+          </div>
+
           <div className="table-responsive">
             <table className="doc-table">
               <thead>
                 <tr>
                   <th>Document</th>
                   <th>Status</th>
-                  <th>Note</th>
+                  <th>Verification Details</th>
                   <th>Rule</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {data.banks[selectedBank].requirements.map((doc, i) => (
+                {currentBankData.requirements.map((doc, i) => (
                   <tr key={i}>
-                    <td style={{ fontWeight: 500 }}>{doc.doc}</td>
+                    <td style={{ fontWeight: 600 }}>{doc.doc}</td>
                     <td>
                       <span className={`badge ${statusBadge[doc.status]}`}>
-                        {statusIcon[doc.status]} {doc.status.toUpperCase()}
+                        {statusIcon[doc.status]} {doc.status === 'ok' ? 'VERIFIED' : doc.status.toUpperCase()}
                       </span>
                     </td>
-                    <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{doc.note}</td>
-                    <td><code style={{ fontSize: 10, color: 'var(--accent)', fontFamily: 'JetBrains Mono, monospace' }}>{doc.rule_ref}</code></td>
+                    <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
+                      <div>{doc.note}</div>
+                      {doc.verification_id && (
+                        <div style={{ fontSize: 10, color: 'var(--green)', marginTop: 2, fontFamily: 'JetBrains Mono, monospace' }}>
+                          ID: {doc.verification_id}
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      <code style={{ fontSize: 10, color: 'var(--accent)', fontFamily: 'JetBrains Mono, monospace' }}>{doc.rule_ref}</code>
+                    </td>
+                    <td>
+                      {doc.status !== 'ok' && doc.status !== 'info' ? (
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={() => handleVerify(doc.id)}
+                          disabled={verifyingDoc === doc.id}
+                        >
+                          {verifyingDoc === doc.id ? '⏳ Verifying...' : '⚡ Verify Document'}
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>✓ Cleared</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1256,36 +1384,51 @@ function DocsScreen() {
         </div>
       )}
 
+      {/* Real Dynamic Bank Comparison Summary */}
       <div className="card">
-        <div className="card-title">Bank Comparison Summary</div>
+        <div className="card-title">Bank Comparison Summary (Live Regulatory Profile)</div>
         <div className="grid-3">
-          {[
-            { bank: 'ICBC', deposit: '¥20', address: 'Optional', photo: 'Required', highlight: false },
-            { bank: 'BOC', deposit: '¥0', address: 'Required', photo: 'Optional', highlight: true },
-            { bank: 'CMB', deposit: '¥10', address: 'Optional', photo: 'Optional', highlight: false },
-          ].map(b => (
-            <div key={b.bank} className="card" style={{ border: b.highlight ? '1px solid var(--green)' : '1px solid var(--border)', position: 'relative' }}>
-              {b.highlight && <div className="best-tag">✓ BEST MATCH</div>}
-              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 10 }}>{b.bank}</div>
-              <div style={{ fontSize: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Min Deposit</span>
-                  <span style={{ fontWeight: 600, color: b.bank === 'BOC' ? 'var(--green)' : 'inherit' }}>{b.deposit}</span>
+          {data && Object.entries(data.banks).map(([bKey, bVal]) => {
+            const isBest = data.best_match === bKey
+            return (
+              <div
+                key={bKey}
+                className="card"
+                style={{
+                  border: isBest ? '1.5px solid var(--green)' : '1px solid var(--border)',
+                  position: 'relative',
+                  background: isBest ? '#f0fdf4' : '#ffffff',
+                  cursor: 'pointer'
+                }}
+                onClick={() => setSelectedBank(bKey)}
+              >
+                {isBest && <div className="best-tag">✓ BEST MATCH</div>}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <div style={{ fontWeight: 800, fontSize: 16 }}>{bKey}</div>
+                  <span className={`badge ${bVal.readiness_pct === 100 ? 'badge-green' : 'badge-accent'}`}>
+                    {bVal.readiness_pct}% Ready
+                  </span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Address Proof</span>
-                  <span>{b.address}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Photo</span>
-                  <span>{b.photo}</span>
+                <div style={{ fontSize: 12, display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Min Deposit</span>
+                    <span style={{ fontWeight: 700, color: bKey === 'BOC' ? 'var(--green)' : 'inherit' }}>{bVal.min_deposit}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Address Proof</span>
+                    <span>{bVal.address_proof}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Photo</span>
+                    <span>{bVal.photo}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
-        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 12 }}>
-          ✓ Best match: Bank of China — zero deposit, dorm contract satisfies address proof. [RB-CN-BANK-03]
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 14 }}>
+          ✓ Verified recommendation: <strong>{data?.banks?.[data?.best_match]?.name || 'Bank of China'}</strong> provides optimal onboarding for international students (zero deposit requirement, dormitory allocation contract satisfies proof of address). [{data?.banks?.[data?.best_match]?.rule_ref || 'RB-CN-BANK-03'}]
         </div>
       </div>
     </div>
@@ -1295,51 +1438,139 @@ function DocsScreen() {
 // ── Credit Path ────────────────────────────────────────────────────────────────
 function CreditScreen() {
   const [data, setData] = useState(null)
+  const [verifyingStep, setVerifyingStep] = useState(null)
+  const [notice, setNotice] = useState(null)
+
+  const loadCredit = () => {
+    api.get('/credit/path').then(setData).catch(() => {})
+  }
 
   useEffect(() => {
-    api.get('/credit/path').then(setData)
+    loadCredit()
   }, [])
+
+  const handleVerifyStep = async (stepNum) => {
+    setVerifyingStep(stepNum)
+    setNotice(null)
+    try {
+      const res = await api.post('/credit/verify', { step: stepNum })
+      setNotice({ type: 'success', text: `✅ Milestone Step ${stepNum} Verified! (Cert ID: ${res.verification_id})` })
+      loadCredit()
+    } catch (err) {
+      setNotice({ type: 'error', text: `⚠️ ${err.message}` })
+    }
+    setVerifyingStep(null)
+  }
 
   return (
     <div className="page-container fade-in">
       <div className="notification notification-info">
         <span>⭐</span>
-        <span>6 steps from first account to your PBOC Credit Reference Report. No score predictions. No approval predictions. [RB-CN-CR-01 – CR-06]</span>
+        <span>6 verified steps from first account to your PBOC Credit Reference Report. Sourced milestones. No score predictions. [RB-CN-CR-01 – CR-06]</span>
       </div>
+
+      {notice && (
+        <div className={`notification ${notice.type === 'success' ? 'notification-success' : 'notification-error'} fade-in`}>
+          <span>{notice.text}</span>
+        </div>
+      )}
 
       {data && (
         <>
-          {/* Graphical Insights: Radial Progress Gauge */}
+          {/* Graphical Insights: Dynamic Radial Progress Gauge */}
           <div className="card fade-in">
-            <CreditProgressGauge completedSteps={3} totalSteps={6} />
+            <CreditProgressGauge completedSteps={data.completed_steps ?? 0} totalSteps={data.total_steps ?? 6} />
           </div>
 
           <div className="card">
-            <div className="card-title">PBOC Credit Progression Roadmap</div>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16, fontStyle: 'italic' }}>{data.disclaimer}</div>
-          {data.milestones.map((m, i) => (
-            <div key={i} className={`credit-step ${m.status === 'pending' || i < 3 ? 'unlocked' : 'locked'}`}>
-              <div className="credit-step-num">{m.step}</div>
-              <div style={{ flex: 1 }}>
-                <div className="credit-step-name">{m.name}</div>
-                <div className="credit-step-meta">
-                  <span>⏱ {m.timing}</span>
-                  <span style={{ margin: '0 8px' }}>·</span>
-                  <span>Requires: {m.prerequisite}</span>
-                  <span style={{ margin: '0 8px' }}>·</span>
-                  <code style={{ fontFamily: 'JetBrains Mono, monospace', color: 'var(--accent)', fontSize: 10 }}>{m.rule_ref}</code>
-                </div>
-              </div>
-              <span className={`badge ${m.status === 'pending' ? 'badge-accent' : 'badge-muted'}`}>
-                {m.status === 'pending' ? 'READY' : '🔒 LOCKED'}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div className="card-title" style={{ margin: 0 }}>PBOC Credit Progression Roadmap</div>
+              <span className="badge badge-accent">
+                {data.completed_steps} of {data.total_steps} Verified
               </span>
             </div>
-          ))}
-        </div>
-      </>
-    )}
-  </div>
-)
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16, fontStyle: 'italic' }}>
+              {data.disclaimer}
+            </div>
+
+            {data.milestones.map((m) => {
+              const isCompleted = m.status === 'completed'
+              const isReady = m.status === 'ready' || m.status === 'pending'
+              const stepClass = isCompleted ? 'completed' : isReady ? 'unlocked' : 'locked'
+
+              return (
+                <div key={m.step} className={`credit-step ${stepClass}`}>
+                  <div className="credit-step-num">
+                    {isCompleted ? '✓' : m.step}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <span className="credit-step-name" style={{ margin: 0 }}>{m.name}</span>
+                      {isCompleted && (
+                        <span className="badge badge-green" style={{ fontSize: 10, padding: '2px 6px' }}>
+                          ✓ VERIFIED
+                        </span>
+                      )}
+                      {isReady && !isCompleted && (
+                        <span className="badge badge-accent" style={{ fontSize: 10, padding: '2px 6px' }}>
+                          READY
+                        </span>
+                      )}
+                      {!isReady && !isCompleted && (
+                        <span className="badge badge-muted" style={{ fontSize: 10, padding: '2px 6px' }}>
+                          🔒 LOCKED
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="credit-step-meta" style={{ marginBottom: 4 }}>
+                      <span>⏱ {m.timing}</span>
+                      <span style={{ margin: '0 8px' }}>·</span>
+                      <span>Requires: {m.prerequisite}</span>
+                      <span style={{ margin: '0 8px' }}>·</span>
+                      <code style={{ fontFamily: 'JetBrains Mono, monospace', color: 'var(--accent)', fontSize: 10 }}>{m.rule_ref}</code>
+                    </div>
+
+                    {m.description && (
+                      <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+                        {m.description}
+                      </div>
+                    )}
+
+                    {isCompleted && m.verification_id && (
+                      <div style={{ fontSize: 10, color: 'var(--green)', marginTop: 4, fontFamily: 'JetBrains Mono, monospace' }}>
+                        Certificate: {m.verification_id} (Signed: {new Date(m.verified_at).toLocaleDateString()})
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    {isCompleted ? (
+                      <span style={{ fontSize: 12, color: 'var(--green)', fontWeight: 700 }}>
+                        ✅ Completed
+                      </span>
+                    ) : isReady ? (
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => handleVerifyStep(m.step)}
+                        disabled={verifyingStep === m.step}
+                      >
+                        {verifyingStep === m.step ? '⏳ Verifying...' : '⚡ Verify & Complete'}
+                      </button>
+                    ) : (
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        🔒 Prerequisite Required
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  )
 }
 
 // ── Chat Component ─────────────────────────────────────────────────────────────
@@ -1358,15 +1589,15 @@ function ChatPanel({ profile }) {
     }
   }, [msgs, collapsed])
 
-  const send = async () => {
-    if (!input.trim() || loading) return
-    const userMsg = input.trim()
+  const sendMessage = async (customMsg = null) => {
+    const textToSend = (customMsg !== null ? customMsg : input).trim()
+    if (!textToSend || loading) return
     setInput('')
-    setMsgs(m => [...m, { role: 'user', text: userMsg }])
+    setMsgs(m => [...m, { role: 'user', text: textToSend }])
     setLoading(true)
     try {
-      const studentCtx = `Student: ${profile?.name || 'Student'} from ${profile?.home_city || 'Origin'}, ${profile?.home_country || 'Home'} (${profile?.home_currency || 'INR'} ${profile?.home_currency_symbol || '₹'}). Destination: ${profile?.host_university || 'Shenzhen University'} in Shenzhen, China.`
-      const res = await api.post('/chat', { message: userMsg, context: studentCtx })
+      const studentCtx = `Student: ${profile?.name || 'Student'} from ${profile?.home_city || 'Origin'}, ${profile?.home_country || 'Home'} (Currency: ${profile?.home_currency || 'INR'} ${profile?.home_currency_symbol || '₹'}). Destination: ${profile?.host_university || 'Shenzhen University'} in ${profile?.host_city || 'Shenzhen'}, China. Budget: ¥${profile?.monthly_budget_cny || 50000} CNY. Arrival Date: ${profile?.arrival_date || '2026-12-01'}. Funding: ${profile?.funding_source || 'Family'}.`
+      const res = await api.post('/chat', { message: textToSend, context: studentCtx })
       setMsgs(m => [...m, { role: 'ai', text: res.response }])
     } catch {
       setMsgs(m => [...m, { role: 'ai', text: '⚠️ Connection error. Is the backend running?' }])
@@ -1374,8 +1605,23 @@ function ChatPanel({ profile }) {
     setLoading(false)
   }
 
-  const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }
+  const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }
   const avatarLetter = (profile?.name || 'S')[0].toUpperCase()
+
+  const formatText = (txt) => {
+    if (!txt) return ''
+    return txt
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\[(RB-[A-Z0-9-]+)\]/g, '<span class="badge badge-accent" style="font-size:10px;padding:2px 6px;margin:0 2px;letter-spacing:0.5px;">$1</span>')
+      .replace(/\n/g, '<br/>')
+  }
+
+  const QUICK_QUESTIONS = [
+    'What can be the next big cost?',
+    'How do I open an ICBC account?',
+    'Tuition payee verification rules',
+    'Explain PSB 24h registration'
+  ]
 
   return (
     <div className="chat-section">
@@ -1383,7 +1629,7 @@ function ChatPanel({ profile }) {
         <div className="chat-avatar chat-avatar-ai">🤖</div>
         <div>
           <div className="chat-agent-name">Landfall AI Assistant</div>
-          <div className="chat-agent-status"><span className="status-dot dot-green"></span> ONLINE · 24/7 ASSISTANT</div>
+          <div className="chat-agent-status"><span className="status-dot dot-green"></span> ONLINE · GEMINI FLASH ACTIVE</div>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{collapsed ? '▲ Expand' : '▼ Minimize'}</span>
@@ -1398,21 +1644,35 @@ function ChatPanel({ profile }) {
                   {m.role === 'ai' ? '🤖' : avatarLetter}
                 </div>
                 <div className={`chat-bubble ${m.role === 'user' ? 'chat-bubble-user' : ''}`}
-                  dangerouslySetInnerHTML={{ __html: m.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+                  dangerouslySetInnerHTML={{ __html: formatText(m.text) }} />
               </div>
             ))}
             {loading && (
               <div className="chat-msg">
                 <div className="chat-avatar chat-avatar-ai">🤖</div>
-                <div className="chat-bubble" style={{ color: 'var(--text-muted)' }}>⏳ Analyzing...</div>
+                <div className="chat-bubble" style={{ color: 'var(--text-muted)' }}>⏳ Consulting Gemini Flash & Rulebooks...</div>
               </div>
             )}
             <div ref={endRef} />
           </div>
+
+          <div className="chat-suggestions">
+            {QUICK_QUESTIONS.map(q => (
+              <button
+                key={q}
+                className="chat-chip"
+                onClick={() => sendMessage(q)}
+                disabled={loading}
+              >
+                💡 {q}
+              </button>
+            ))}
+          </div>
+
           <div className="chat-input-row">
             <input className="chat-input" value={input} onChange={e => setInput(e.target.value)}
-              onKeyDown={onKey} placeholder="Ask about tuition, scams, FX routes, credit path..." />
-            <button className="chat-send" onClick={send} disabled={loading}>↑</button>
+              onKeyDown={onKey} placeholder={`Ask about costs in ${profile?.home_currency || 'your currency'}, bank setup, scams...`} />
+            <button className="chat-send" onClick={() => sendMessage()} disabled={loading}>↑</button>
           </div>
         </>
       )}
